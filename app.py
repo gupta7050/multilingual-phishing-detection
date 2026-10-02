@@ -741,11 +741,37 @@ st.markdown(
 
     footer {
 
-        visibility:
-        hidden;
-    }
+    visibility:
+    hidden;
+}
 
-    </style>
+
+/* ======================================================
+   HIDE STREAMLIT TOOLBAR ITEMS
+   ====================================================== */
+
+button[aria-label*="Star"],
+button[title*="Star"] {
+
+    display:
+    none !important;
+}
+
+button[aria-label*="Edit"],
+button[title*="Edit"] {
+
+    display:
+    none !important;
+}
+
+a[aria-label*="GitHub"],
+a[title*="GitHub"] {
+
+    display:
+    none !important;
+}
+
+</style>
     """,
     unsafe_allow_html=True
 )

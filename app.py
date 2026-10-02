@@ -790,25 +790,50 @@ if analyze:
             "📊 Prediction Result"
         )
 
-        st.subheader("📊 Prediction Result")
+        if result == "SPAM / FRAUD":
 
-# 👇 CHANGE THE OLD HTML BLOCK HERE
-if result == "SPAM / FRAUD":
-    st.error("🚨 SPAM / FRAUD DETECTED")
-    st.markdown(
-        "**Warning:** The model detected patterns associated with "
-        "suspicious or fraudulent messages."
-    )
-else:
-    st.success("✅ LEGITIMATE MESSAGE")
-    st.markdown(
-        "**Safe classification:** The model classified this message "
-        "as legitimate (Ham)."
-    )
+            st.error(
+                "🚨 SPAM / FRAUD DETECTED"
+            )
 
-st.write("")
+            st.markdown(
+                "**Warning:** The model detected patterns associated "
+                "with suspicious or fraudulent messages."
+            )
 
-result_col1, result_col2 = st.columns(2)
+        else:
+
+            st.success(
+                "✅ LEGITIMATE MESSAGE"
+            )
+
+            st.markdown(
+                "**Safe classification:** The model classified this "
+                "message as legitimate (Ham)."
+            )
+
+        st.write("")
+
+        result_col1, result_col2 = st.columns(2)
+
+        with result_col1:
+
+            st.metric(
+                "🌐 Detected Language",
+                language
+            )
+
+        with result_col2:
+
+            st.metric(
+                "📊 Confidence",
+                f"{confidence:.1f}%"
+            )
+
+        st.progress(
+            min(confidence / 100, 1.0),
+            text=f"Model confidence: {confidence:.1f}%"
+        )
 
 # ============================================================
 # DETECTION PIPELINE

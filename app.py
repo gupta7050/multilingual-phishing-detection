@@ -615,9 +615,9 @@ with st.sidebar:
         expanded=False
     ):
 
-        st.markdown("🇬🇧 **English**")
-        st.markdown("🇮🇳 **Hindi**")
-        st.markdown("💬 **Hinglish**")
+        st.markdown(" **English**")
+        st.markdown(" **Hindi**")
+        st.markdown(" **Hinglish**")
 
     with st.expander(
         "🤖 Machine Learning",

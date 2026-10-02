@@ -852,22 +852,20 @@ with tab3:
 # FOOTER
 # ============================================================
 
-render_html("""
-<div class="footer-text">
+st.divider()
 
-    🛡️ <b>Multilingual Phishing & Spam Detection</b>
+st.caption(
+    "🛡️ Multilingual Phishing & Spam Detection"
+)
 
-    <br><br>
+st.caption(
+    "Machine Learning • Natural Language Processing"
+)
 
-    Machine Learning • Natural Language Processing
+st.caption(
+    "English • Hindi • Hinglish"
+)
 
-    <br>
-
-    English • Hindi • Hinglish
-
-    <br><br>
-
-    Final Year Academic Project
-
-</div>
-""")
+st.caption(
+    "Final Year Academic Project"
+)

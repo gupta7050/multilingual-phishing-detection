@@ -711,113 +711,44 @@ if analyze:
             text=f"Model confidence: {confidence:.1f}%"
         )
 
-
 # ============================================================
 # DETECTION PIPELINE
 # ============================================================
 
 st.markdown("---")
 
-st.subheader(
-    "⚙️ Detection Pipeline"
-)
+st.subheader("⚙️ Detection Pipeline")
 
 st.caption(
     "The system combines multilingual preprocessing "
     "with machine-learning based classification."
 )
 
+col1, col2, col3, col4 = st.columns(4)
 
-feature1, feature2, feature3, feature4 = st.columns(4)
+with col1:
+    st.info(
+        "🌐 **Multilingual**\n\n"
+        "English, Hindi and Hinglish message detection."
+    )
 
+with col2:
+    st.info(
+        "🧹 **NLP Processing**\n\n"
+        "Text cleaning, normalization, stopword removal and stemming."
+    )
 
-with feature1:
+with col3:
+    st.info(
+        "🔤 **TF-IDF Features**\n\n"
+        "Word-level and character-level text features."
+    )
 
-    render_html("""
-    <div class="info-card">
-
-        <div class="info-icon">
-            🌐
-        </div>
-
-        <div class="info-title">
-            Multilingual
-        </div>
-
-        <div class="info-text">
-            English, Hindi and Hinglish
-            message detection.
-        </div>
-
-    </div>
-    """)
-
-
-with feature2:
-
-    render_html("""
-    <div class="info-card">
-
-        <div class="info-icon">
-            🧹
-        </div>
-
-        <div class="info-title">
-            NLP Processing
-        </div>
-
-        <div class="info-text">
-            Text cleaning, normalization,
-            stopword removal and stemming.
-        </div>
-
-    </div>
-    """)
-
-
-with feature3:
-
-    render_html("""
-    <div class="info-card">
-
-        <div class="info-icon">
-            🔤
-        </div>
-
-        <div class="info-title">
-            TF-IDF Features
-        </div>
-
-        <div class="info-text">
-            Word-level and character-level
-            text features.
-        </div>
-
-    </div>
-    """)
-
-
-with feature4:
-
-    render_html("""
-    <div class="info-card">
-
-        <div class="info-icon">
-            🧠
-        </div>
-
-        <div class="info-title">
-            Linear SVM
-        </div>
-
-        <div class="info-text">
-            Machine learning classification
-            for message detection.
-        </div>
-
-    </div>
-    """)
-
+with col4:
+    st.info(
+        "🧠 **Linear SVM**\n\n"
+        "Machine learning classification for message detection."
+    )
 
 # ============================================================
 # INFORMATION TABS

@@ -928,64 +928,92 @@ with tab1:
 
 
 # ============================================================
-# EXAMPLE MESSAGES
+# SAMPLE MESSAGE BUTTONS
 # ============================================================
 
-with tab2:
+if "sample_message" not in st.session_state:
+    st.session_state.sample_message = ""
 
-    st.markdown(
-        "### 🧪 Try an Example Message"
-    )
 
-    examples = [
-        "Congratulations! You have won a free lottery ticket. Claim now!",
-        "URGENT: Your SBI account is blocked. Share OTP to verify.",
-        "Yaar FREE iPhone jeetne ke liye is link pe click kar jaldi!",
-        "Hey, are you free for dinner tonight?",
-        "कल मिलते हैं, ठीक है?",
-        "Bhai kal cricket dekhne chalte hain?"
-    ]
+spam_examples = [
+    "Congratulations! You have won a free lottery ticket worth $1000. Claim now!",
+    "URGENT: Your bank account has been blocked. Click the link to verify your account.",
+    "You are selected for a ₹50,000 cash prize. Claim your reward immediately!",
+    "Congratulations! You won an iPhone 15. Pay ₹999 to receive your prize.",
+    "Your KYC has expired. Update your details now to avoid account suspension.",
+    "URGENT! You have received a cashback of ₹10,000. Click here to claim.",
+    "You have won a lucky draw prize of ₹5,00,000. Send your details to claim.",
+    "Your mobile number has won a special reward. Claim it before midnight!"
+]
 
-    st.markdown(
-        "Choose an example manually or let the system select one randomly."
-    )
 
-    selected_example = st.selectbox(
-        "Select Example",
-        examples,
-        label_visibility="collapsed"
-    )
+hindi_examples = [
+    "कल मिलते हैं, ठीक है?",
+    "मुझे आज कॉलेज जाना है।",
+    "क्या तुम शाम को मेरे साथ बाजार चलोगे?",
+    "आज मौसम बहुत अच्छा है।",
+    "माँ ने कहा है कि जल्दी घर आ जाना।",
+    "कल हमारी क्लास सुबह दस बजे है।",
+    "तुमने खाना खा लिया क्या?",
+    "आज शाम को क्रिकेट खेलने चलें?"
+]
 
-    select_col1, select_col2 = st.columns(2)
 
-    with select_col1:
+hinglish_examples = [
+    "Yaar FREE iPhone jeetne ke liye is link pe click kar jaldi!",
+    "Bhai kal cricket dekhne chalte hain?",
+    "Yaar aaj college kab jana hai?",
+    "Bhai mujhe kal assignment submit karna hai.",
+    "Tum free ho kya? Aaj movie dekhne chalte hain.",
+    "Yaar ye offer bahut amazing hai, jaldi check kar!",
+    "Bhai kal exam ke liye preparation kiya?",
+    "Aaj evening mein chai peene chalte hain?"
+]
 
-        if st.button(
-            "📌 Use Selected Example",
-            use_container_width=True
-        ):
 
-            st.session_state.sample_message = selected_example
+sample1, sample2, sample3 = st.columns(3)
 
-            st.rerun()
 
-    with select_col2:
+with sample1:
 
-        if st.button(
-            "🎲 Choose Random Example",
-            use_container_width=True
-        ):
+    if st.button(
+        "🚨 Spam Example",
+        use_container_width=True
+    ):
 
-            st.session_state.sample_message = random.choice(
-                examples
-            )
+        st.session_state.sample_message = random.choice(
+            spam_examples
+        )
 
-            st.rerun()
+        st.rerun()
 
-    st.info(
-        "💡 After selecting an example, click "
-        "**🔎 Analyze Message** above to test the model."
-    )
+
+with sample2:
+
+    if st.button(
+        "🇮🇳 Hindi Example",
+        use_container_width=True
+    ):
+
+        st.session_state.sample_message = random.choice(
+            hindi_examples
+        )
+
+        st.rerun()
+
+
+with sample3:
+
+    if st.button(
+        "💬 Hinglish Example",
+        use_container_width=True
+    ):
+
+        st.session_state.sample_message = random.choice(
+            hinglish_examples
+        )
+
+        st.rerun()
 
 # ============================================================
 # TECHNOLOGY

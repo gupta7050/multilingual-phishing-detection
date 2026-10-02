@@ -734,24 +734,6 @@ st.markdown(
         rgba(0, 255, 136, 0.15) !important;
     }
 
-    /* ======================================================
-       HIDE STREAMLIT TOP TOOLBAR
-       ====================================================== */
-
-    header {
-        visibility: hidden !important;
-        height: 0 !important;
-    }
-
-    [data-testid="stHeader"] {
-        visibility: hidden !important;
-        height: 0 !important;
-    }
-
-    [data-testid="stToolbar"] {
-        display: none !important;
-    }
-
 </style>
     """,
     unsafe_allow_html=True

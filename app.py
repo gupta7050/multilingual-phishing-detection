@@ -518,26 +518,23 @@ with st.sidebar:
         "Final Year Academic Project"
     )
 
-
 # ============================================================
 # HEADER
 # ============================================================
 
-render_html("""
-<div class="header-box">
+st.markdown(
+    "# 🛡️ Multilingual Phishing & Spam Detection"
+)
 
-    <div class="header-title">
-        🛡️ Multilingual Phishing & Spam Detection
-    </div>
+st.markdown(
+    """
+    Detect spam, phishing, fraudulent and unwanted messages
+    in **English, Hindi and Hinglish** using Machine Learning
+    and Natural Language Processing.
+    """
+)
 
-    <div class="header-text">
-        Detect spam, phishing, fraudulent and unwanted messages
-        in English, Hindi and Hinglish using Machine Learning
-        and Natural Language Processing.
-    </div>
-
-</div>
-""")
+st.divider()
 
 
 # ============================================================

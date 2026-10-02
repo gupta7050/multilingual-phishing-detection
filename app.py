@@ -519,13 +519,40 @@ section[data-testid="stSidebar"] .stButton > button {
    EXPANDER
    ========================================================= */
 
-div[data-testid="stExpander"] {
+section[data-testid="stSidebar"] div[data-testid="stExpander"] {
 
-    background: rgba(255,255,255,0.72);
+    background: rgba(30, 41, 82, 0.90) !important;
 
-    border: 1px solid rgba(148,163,184,0.25);
+    border: 1px solid rgba(129, 140, 248, 0.35) !important;
 
-    border-radius: 15px;
+    border-radius: 15px !important;
+
+    margin-bottom: 10px !important;
+
+    box-shadow:
+        0 4px 15px rgba(0, 0, 0, 0.20) !important;
+}
+
+
+/* Expander text */
+
+section[data-testid="stSidebar"] div[data-testid="stExpander"] summary {
+
+    color: #ffffff !important;
+
+    font-weight: 600 !important;
+}
+
+
+/* Expander hover */
+
+section[data-testid="stSidebar"] div[data-testid="stExpander"]:hover {
+
+    background: rgba(49, 46, 129, 0.95) !important;
+
+    border-color: rgba(129, 140, 248, 0.70) !important;
+
+    transition: all 0.2s ease;
 }
 
 

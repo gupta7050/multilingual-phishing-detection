@@ -662,10 +662,6 @@ with st.sidebar:
 
         st.markdown(
             """
-            **Type**
-
-            Final Year Academic Project
-
             **Domain**
 
             Machine Learning + NLP

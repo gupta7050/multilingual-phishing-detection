@@ -567,72 +567,96 @@ div[data-testid="stCode"] {
 
 with st.sidebar:
 
-    st.markdown("# 🛡️ ShieldAI")
-
     st.markdown(
-        "### Multilingual Fraud Detection"
+        "## 🛡️ ShieldAI"
+    )
+
+    st.caption(
+        "Multilingual Fraud Detection"
     )
 
     st.divider()
 
-    st.markdown(
-        "### 🌐 Supported Languages"
+    # Important model badge
+    st.success(
+        "🟢 MODEL ONLINE"
     )
 
-    st.markdown(
-        """
-        🇬🇧 **English**
+    # --------------------------------------------------------
+    # Supported Languages
+    # --------------------------------------------------------
 
-        🇮🇳 **Hindi**
+    with st.expander("🌐 Supported Languages", expanded=False):
 
-        💬 **Hinglish**
-        """
-    )
+        st.markdown("🇬🇧 **English**")
+        st.markdown("🇮🇳 **Hindi**")
+        st.markdown("💬 **Hinglish**")
 
-    st.divider()
+    # --------------------------------------------------------
+    # Machine Learning
+    # --------------------------------------------------------
 
-    st.markdown(
-        "### 🤖 Machine Learning"
-    )
+    with st.expander("🤖 Machine Learning", expanded=True):
 
-    st.markdown(
-        """
-        **Final Model**
+        st.markdown("**Final Model**")
 
-        Linear SVM
+        st.info(
+            "🧠 Linear SVM"
+        )
 
-        **Features**
+        st.markdown("**Features**")
 
-        Word TF-IDF + Character TF-IDF
-        """
-    )
+        st.info(
+            "🔤 Word TF-IDF + Character TF-IDF"
+        )
 
-    st.divider()
+    # --------------------------------------------------------
+    # How to Use
+    # --------------------------------------------------------
 
-    st.markdown(
-        "### 💡 How to Use"
-    )
+    with st.expander("💡 How to Use", expanded=False):
 
-    st.markdown(
-        """
-        **1.** Enter a message.
+        st.markdown(
+            """
+            **1️⃣** Enter a message.
 
-        **2.** Click Analyze Message.
+            **2️⃣** Click **Analyze Message**.
 
-        **3.** Check the language.
+            **3️⃣** Check the detected language.
 
-        **4.** View the prediction.
+            **4️⃣** View the prediction.
 
-        **5.** Check the confidence.
-        """
-    )
+            **5️⃣** Check the confidence.
+            """
+        )
+
+    # --------------------------------------------------------
+    # Project
+    # --------------------------------------------------------
+
+    with st.expander("📚 Project", expanded=False):
+
+        st.markdown(
+            """
+            **Type**
+
+            Final Year Academic Project
+
+            **Domain**
+
+            Machine Learning + NLP
+
+            **Languages**
+
+            English • Hindi • Hinglish
+            """
+        )
 
     st.divider()
 
     st.caption(
-        "Final Year Academic Project"
+        "🛡️ Multilingual Phishing & Spam Detection"
     )
-
 # ============================================================
 # HEADER
 # ============================================================

@@ -2,7 +2,10 @@ import streamlit as st
 import pickle
 import re
 import random
+import inspect
 from pathlib import Path
+
+import numpy as np
 from scipy.sparse import hstack
 import nltk
 from nltk.stem import PorterStemmer
@@ -15,10 +18,30 @@ from nltk.corpus import stopwords
 
 st.set_page_config(
     page_title="Multilingual Phishing & Spam Detection",
-    page_icon="",
+    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+
+# ============================================================
+# COMPATIBILITY: button width (old and new Streamlit versions)
+# ============================================================
+
+if "width" in inspect.signature(st.button).parameters:
+    STRETCH = {"width": "stretch"}
+else:
+    STRETCH = {"use_container_width": True}
+
+
+# ============================================================
+# SETTINGS
+# ============================================================
+
+# IMPORTANT: this must match how your TRAINING notebook preprocessed text.
+# Keep False if your saved .pkl files were trained with the original
+# preprocessing. Set True only after retraining with the fixed version.
+USE_FIXED_PREPROCESSING = False
 
 
 # ============================================================
@@ -51,46 +74,50 @@ hinglish_stops = {
 
 all_stops = english_stops | hinglish_stops
 
+# Romanized Hindi words used to detect Hinglish written in Latin script
+HINGLISH_MARKERS = (hinglish_stops - english_stops) | {
+    "karo", "kare", "bhejo", "jeeta", "jeete", "abhi", "tumhara",
+    "tumhare", "wala", "rahe", "mila", "batao", "kijiye", "tumne",
+    "tumhe", "naam", "liye", "jaldi", "sirf", "aaj", "pehle"
+}
+
 
 # ============================================================
 # SESSION STATE
 # ============================================================
 
-if "sample_message" not in st.session_state:
-    st.session_state.sample_message = ""
+if "message" not in st.session_state:
+    st.session_state.message = ""
 
 
 # ============================================================
-# LOAD MODELS
+# LOAD MODELS (cached, loaded only once)
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
-try:
 
-    with open(
-        BASE_DIR / "tfidf_word.pkl",
-        "rb"
-    ) as f:
+@st.cache_resource
+def load_models():
+
+    with open(BASE_DIR / "tfidf_word.pkl", "rb") as f:
         tfidf_word = pickle.load(f)
 
-    with open(
-        BASE_DIR / "tfidf_char.pkl",
-        "rb"
-    ) as f:
+    with open(BASE_DIR / "tfidf_char.pkl", "rb") as f:
         tfidf_char = pickle.load(f)
 
-    with open(
-        BASE_DIR / "best_model.pkl",
-        "rb"
-    ) as f:
+    with open(BASE_DIR / "best_model.pkl", "rb") as f:
         best_clf = pickle.load(f)
 
-    with open(
-        BASE_DIR / "label_encoder.pkl",
-        "rb"
-    ) as f:
+    with open(BASE_DIR / "label_encoder.pkl", "rb") as f:
         encoder = pickle.load(f)
+
+    return tfidf_word, tfidf_char, best_clf, encoder
+
+
+try:
+
+    tfidf_word, tfidf_char, best_clf, encoder = load_models()
 
 except Exception as e:
 
@@ -127,17 +154,33 @@ def preprocess_multilingual(text):
         text
     )
 
-    text = re.sub(
-        r"₹|rs\.?|inr",
-        " rupees ",
-        text
-    )
+    if USE_FIXED_PREPROCESSING:
+        # Word boundaries so "hours", "users", "first" are not corrupted
+        text = re.sub(
+            r"₹|\brs\b\.?|\binr\b",
+            " rupees ",
+            text
+        )
+    else:
+        text = re.sub(
+            r"₹|rs\.?|inr",
+            " rupees ",
+            text
+        )
 
     text = re.sub(
         r"£|\$|€",
         " currency ",
         text
     )
+
+    if USE_FIXED_PREPROCESSING:
+        # Remove the Devanagari danda / double danda
+        text = re.sub(
+            r"[\u0964\u0965]",
+            " ",
+            text
+        )
 
     text = re.sub(
         r"[^\w\s\u0900-\u097F]",
@@ -179,30 +222,59 @@ def detect_language(text):
 
     text = str(text)
 
-    hindi_chars = len(
-        re.findall(
-            r"[\u0900-\u097F]",
-            text
-        )
-    )
+    hindi = len(re.findall(r"[\u0900-\u097F]", text))
+    latin = len(re.findall(r"[A-Za-z]", text))
 
-    english_chars = len(
-        re.findall(
-            r"[A-Za-z]",
-            text
-        )
-    )
+    tokens = re.findall(r"[a-z]+", text.lower())
+    marker_hits = sum(t in HINGLISH_MARKERS for t in tokens)
 
-    if hindi_chars > 0 and english_chars > 0:
+    # Devanagari mixed with a lot of Latin text
+    if hindi and latin and hindi / (hindi + latin) < 0.8:
         return "Hinglish"
 
-    elif hindi_chars > 0:
+    # Mostly Devanagari (a few words like KYC / OTP are still Hindi)
+    if hindi:
         return "Hindi"
 
-    elif english_chars > 0:
+    # Romanized Hindi mixed with English
+    if latin and marker_hits >= 2:
+        return "Hinglish"
+
+    if latin:
         return "English"
 
     return "Unknown"
+
+
+# ============================================================
+# LABEL HELPERS
+# ============================================================
+
+SPAM_LABELS = {"spam", "phishing", "fraud", "scam", "smishing", "1"}
+HAM_LABELS = {
+    "ham", "legitimate", "legit", "safe", "normal",
+    "not_spam", "not spam", "non-spam", "non_spam", "nonspam", "0"
+}
+
+
+def label_to_result(label_text):
+
+    label_text = str(label_text).strip().lower()
+
+    if label_text in HAM_LABELS:
+        return "LEGITIMATE"
+
+    if label_text in SPAM_LABELS:
+        return "SPAM / FRAUD"
+
+    # Unknown label name: negated forms are legitimate
+    if label_text.startswith(("not", "non", "no_", "no ")):
+        return "LEGITIMATE"
+
+    if any(k in label_text for k in ("spam", "fraud", "phish", "scam")):
+        return "SPAM / FRAUD"
+
+    return "LEGITIMATE"
 
 
 # ============================================================
@@ -217,6 +289,9 @@ def predict_message(message):
         message
     )
 
+    if not processed:
+        return language, None, 0.0
+
     X_w = tfidf_word.transform(
         [processed]
     )
@@ -226,7 +301,8 @@ def predict_message(message):
     )
 
     X = hstack(
-        [X_w, X_c]
+        [X_w, X_c],
+        format="csr"
     )
 
     predicted_label = best_clf.predict(X)[0]
@@ -237,39 +313,35 @@ def predict_message(message):
             [predicted_label]
         )[0]
 
-        label_text = str(
-            decoded_label
-        ).lower()
-
-        if (
-            "spam" in label_text
-            or "fraud" in label_text
-            or "phishing" in label_text
-        ):
-
-            result = "SPAM / FRAUD"
-
-        else:
-
-            result = "LEGITIMATE"
+        result = label_to_result(decoded_label)
 
     except Exception:
 
-        if predicted_label == 1:
-            result = "SPAM / FRAUD"
-        else:
-            result = "LEGITIMATE"
+        result = label_to_result(predicted_label)
 
-    if hasattr(
-        best_clf,
-        "predict_proba"
-    ):
+    # --------------------------------------------------------
+    # Confidence
+    # --------------------------------------------------------
+
+    if hasattr(best_clf, "predict_proba"):
 
         probability = best_clf.predict_proba(X)[0]
 
-        confidence = (
-            max(probability) * 100
-        )
+        confidence = float(np.max(probability)) * 100
+
+    elif hasattr(best_clf, "decision_function"):
+
+        # LinearSVC has no probabilities: convert the margin to a
+        # 50-100% score (uncalibrated)
+        scores = np.ravel(best_clf.decision_function(X))
+
+        if scores.size == 1:
+            margin = abs(float(scores[0]))
+        else:
+            top_two = np.sort(scores)[-2:]
+            margin = float(top_two[1] - top_two[0])
+
+        confidence = 100 / (1 + np.exp(-margin))
 
     else:
 
@@ -361,7 +433,8 @@ st.markdown(
        MAIN CONTENT
        ====================================================== */
 
-    .main .block-container {
+    .main .block-container,
+    [data-testid="stMainBlockContainer"] {
 
         position:
         relative;
@@ -735,35 +808,55 @@ st.markdown(
     }
 
 
-
     /* ======================================================
        STREAMLIT CLOUD TOP BAR
        Keep ONLY Share and the three-dot menu.
-       Hide Star, Edit and GitHub.
+       Hide Star, Edit (pen) and GitHub icons.
        ====================================================== */
 
-    /* GitHub */
-    #GithubIcon {
+    /* GitHub icon */
+    #GithubIcon,
+    header a[href*="github.com"],
+    [data-testid="stToolbar"] a[href*="github.com"],
+    [data-testid="stToolbarActions"] a[href*="github.com"],
+    .stAppToolbar a[href*="github.com"] {
         display: none !important;
+        visibility: hidden !important;
     }
 
-    /* Star / Favorite */
-    [data-testid="stToolbar"] button[aria-label*="Star"],
-    [data-testid="stToolbar"] button[title*="Star"],
-    [data-testid="stToolbar"] [aria-label*="star"],
-    [data-testid="stToolbar"] [title*="star"] {
+    /* Star / Favorite icon */
+    header [aria-label*="star" i],
+    header [title*="star" i],
+    header [data-testid*="star" i],
+    header [data-testid*="favorite" i],
+    [data-testid="stToolbar"] [aria-label*="star" i],
+    [data-testid="stToolbar"] [title*="star" i],
+    [data-testid="stToolbar"] [data-testid*="star" i],
+    [data-testid="stToolbar"] [data-testid*="favorite" i],
+    [data-testid="stToolbarActions"] [aria-label*="star" i],
+    [data-testid="stToolbarActions"] [title*="star" i],
+    .stAppToolbar [aria-label*="star" i],
+    .stAppToolbar [title*="star" i] {
         display: none !important;
+        visibility: hidden !important;
     }
 
-    /* Edit / pencil */
-    [data-testid="stToolbar"] button[aria-label*="Edit"],
-    [data-testid="stToolbar"] button[title*="Edit"],
-    [data-testid="stToolbar"] [aria-label*="edit"],
-    [data-testid="stToolbar"] [title*="edit"] {
+    /* Edit / pen icon */
+    header [aria-label*="edit" i],
+    header [title*="edit" i],
+    header [data-testid*="edit" i],
+    [data-testid="stToolbar"] [aria-label*="edit" i],
+    [data-testid="stToolbar"] [title*="edit" i],
+    [data-testid="stToolbar"] [data-testid*="edit" i],
+    [data-testid="stToolbarActions"] [aria-label*="edit" i],
+    [data-testid="stToolbarActions"] [title*="edit" i],
+    .stAppToolbar [aria-label*="edit" i],
+    .stAppToolbar [title*="edit" i] {
         display: none !important;
+        visibility: hidden !important;
     }
 
-</style>
+    </style>
     """,
     unsafe_allow_html=True
 )
@@ -776,7 +869,7 @@ st.markdown(
 with st.sidebar:
 
     st.markdown(
-        "##  ShieldAI"
+        "## 🛡️ ShieldAI"
     )
 
     st.caption(
@@ -900,7 +993,7 @@ with st.sidebar:
 # ============================================================
 
 st.markdown(
-    "#  Multilingual Phishing & Spam Detection"
+    "# 🛡️ Multilingual Phishing & Spam Detection"
 )
 
 st.caption(
@@ -914,7 +1007,7 @@ st.caption(
 # ============================================================
 
 st.subheader(
-    " Message Analyzer"
+    "🔍 Message Analyzer"
 )
 
 st.caption(
@@ -943,6 +1036,27 @@ spam_examples = [
     "You have won a lucky draw prize of ₹5,00,000. Send your details to claim.",
 
     "Your mobile number has won a special reward. Claim it before midnight!"
+
+]
+
+
+legit_examples = [
+
+    "Hi, are we still meeting for lunch tomorrow at 1 pm?",
+
+    "Your order has been shipped and will arrive by Friday. Thank you for shopping with us.",
+
+    "Reminder: your dentist appointment is scheduled for Monday at 10:30 AM.",
+
+    "Please find the meeting notes attached. Let me know if I missed anything.",
+
+    "Happy birthday! Hope you have a wonderful day with family and friends.",
+
+    "Bhai kal shaam ko cricket khelne chalna hai, tum aa rahe ho?",
+
+    "Mummy ne kaha hai ki aaj dinner ghar par karna hai.",
+
+    "कल की मीटिंग शाम पाँच बजे है, कृपया समय पर पहुँचें।"
 
 ]
 
@@ -1038,52 +1152,60 @@ hinglish_examples = [
 
 
 # ============================================================
+# SAMPLE BUTTON CALLBACKS
+# (callbacks run before the text area is drawn, so no st.rerun()
+#  is needed and the text box always gets replaced)
+# ============================================================
+
+def set_sample(examples):
+    st.session_state.message = random.choice(examples)
+
+
+# ============================================================
 # SAMPLE BUTTONS
 # ============================================================
 
-sample1, sample2, sample3 = st.columns(3)
+sample1, sample2, sample3, sample4 = st.columns(4)
 
 
 with sample1:
 
-    if st.button(
-        " Spam Example",
-        use_container_width=True
-    ):
-
-        st.session_state.sample_message = random.choice(
-            spam_examples
-        )
-
-        st.rerun()
+    st.button(
+        "🚨 Spam Example",
+        on_click=set_sample,
+        args=(spam_examples,),
+        **STRETCH
+    )
 
 
 with sample2:
 
-    if st.button(
-        " Hindi Example",
-        use_container_width=True
-    ):
-
-        st.session_state.sample_message = random.choice(
-            hindi_examples
-        )
-
-        st.rerun()
+    st.button(
+        "🇮🇳 Hindi Example",
+        on_click=set_sample,
+        args=(hindi_examples,),
+        **STRETCH
+    )
 
 
 with sample3:
 
-    if st.button(
-        " Hinglish Example",
-        use_container_width=True
-    ):
+    st.button(
+        "💬 Hinglish Example",
+        on_click=set_sample,
+        args=(hinglish_examples,),
+        **STRETCH
+    )
 
-        st.session_state.sample_message = random.choice(
-            hinglish_examples
-        )
 
-        st.rerun()
+with sample4:
+
+    st.button(
+        "✅ Legitimate Example",
+        on_click=set_sample,
+        args=(legit_examples,),
+        **STRETCH
+    )
 
 
 # ============================================================
@@ -1092,7 +1214,7 @@ with sample3:
 
 message = st.text_area(
     "Message",
-    value=st.session_state.sample_message,
+    key="message",
     height=160,
     placeholder=(
         "Example: Congratulations! You have won a prize. "
@@ -1106,9 +1228,9 @@ message = st.text_area(
 # ============================================================
 
 analyze = st.button(
-    " Analyze Message",
-    use_container_width=True,
-    type="primary"
+    "🔎 Analyze Message",
+    type="primary",
+    **STRETCH
 )
 
 
@@ -1121,7 +1243,7 @@ if analyze:
     if not message.strip():
 
         st.warning(
-            " Please enter a message before analyzing."
+            "⚠️ Please enter a message before analyzing."
         )
 
     else:
@@ -1133,56 +1255,67 @@ if analyze:
         st.markdown("---")
 
         st.subheader(
-            " Prediction Result"
+            "📊 Prediction Result"
         )
 
-        if result == "SPAM / FRAUD":
+        if result is None:
 
-            st.error(
-                " SPAM / FRAUD DETECTED"
-            )
-
-            st.markdown(
-                "**Warning:** The model detected patterns "
-                "associated with suspicious or fraudulent messages."
+            st.warning(
+                "⚠️ The message is too short or contains only common "
+                "words, so there is not enough content to analyze. "
+                "Please enter a longer message."
             )
 
         else:
 
-            st.success(
-                " LEGITIMATE MESSAGE"
+            if result == "SPAM / FRAUD":
+
+                st.error(
+                    "🚨 SPAM / FRAUD DETECTED"
+                )
+
+                st.markdown(
+                    "**Warning:** The model detected patterns "
+                    "associated with suspicious or fraudulent messages."
+                )
+
+            else:
+
+                st.success(
+                    "✅ LEGITIMATE MESSAGE"
+                )
+
+                st.markdown(
+                    "**Result:** No fraud patterns were detected, "
+                    "but always stay cautious with links and requests "
+                    "for personal information."
+                )
+
+            st.write("")
+
+            result_col1, result_col2 = st.columns(2)
+
+            with result_col1:
+
+                st.metric(
+                    "🌐 Detected Language",
+                    language
+                )
+
+            with result_col2:
+
+                st.metric(
+                    "🎯 Confidence",
+                    f"{confidence:.1f}%"
+                )
+
+            st.progress(
+                min(confidence / 100, 1.0),
+                text=(
+                    f"Model confidence: "
+                    f"{confidence:.1f}%"
+                )
             )
-
-            st.markdown(
-                "**Safe classification:** The model classified "
-                "this message as legitimate (Ham)."
-            )
-
-        st.write("")
-
-        result_col1, result_col2 = st.columns(2)
-
-        with result_col1:
-
-            st.metric(
-                " Detected Language",
-                language
-            )
-
-        with result_col2:
-
-            st.metric(
-                " Confidence",
-                f"{confidence:.1f}%"
-            )
-
-        st.progress(
-            min(confidence / 100, 1.0),
-            text=(
-                f"Model confidence: "
-                f"{confidence:.1f}%"
-            )
-        )
 
 
 # ============================================================
@@ -1192,7 +1325,7 @@ if analyze:
 st.markdown("---")
 
 st.subheader(
-    " Detection Pipeline"
+    "⚙️ Detection Pipeline"
 )
 
 st.caption(
@@ -1207,7 +1340,7 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
 
     st.info(
-        " **Multilingual**\n\n"
+        "🌍 **Multilingual**\n\n"
         "English, Hindi and Hinglish message detection."
     )
 
@@ -1215,7 +1348,7 @@ with col1:
 with col2:
 
     st.info(
-        " **NLP Processing**\n\n"
+        "🧹 **NLP Processing**\n\n"
         "Text cleaning, normalization, stopword removal "
         "and stemming."
     )
@@ -1224,7 +1357,7 @@ with col2:
 with col3:
 
     st.info(
-        " **TF-IDF Features**\n\n"
+        "📐 **TF-IDF Features**\n\n"
         "Word-level and character-level text features."
     )
 
@@ -1232,7 +1365,7 @@ with col3:
 with col4:
 
     st.info(
-        " **Linear SVM**\n\n"
+        "🤖 **Linear SVM**\n\n"
         "Machine learning classification for message detection."
     )
 
@@ -1342,7 +1475,7 @@ with tab3:
 st.divider()
 
 st.caption(
-    " Multilingual Phishing & Spam Detection"
+    "🛡️ Multilingual Phishing & Spam Detection"
 )
 
 st.caption(

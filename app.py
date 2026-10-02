@@ -3,6 +3,7 @@ import pickle
 import re
 import textwrap
 from pathlib import Path
+import random
 
 import nltk
 from nltk.stem import PorterStemmer
@@ -220,6 +221,7 @@ def predict_message(message):
         result = "LEGITIMATE"
 
     return language, result, confidence
+
 
 # ============================================================
 # CUSTOM CSS
@@ -577,26 +579,23 @@ with st.sidebar:
 
     st.divider()
 
-    # Important model badge
     st.success(
         "🟢 MODEL ONLINE"
     )
 
-    # --------------------------------------------------------
-    # Supported Languages
-    # --------------------------------------------------------
-
-    with st.expander("🌐 Supported Languages", expanded=False):
+    with st.expander(
+        "🌐 Supported Languages",
+        expanded=False
+    ):
 
         st.markdown("🇬🇧 **English**")
         st.markdown("🇮🇳 **Hindi**")
         st.markdown("💬 **Hinglish**")
 
-    # --------------------------------------------------------
-    # Machine Learning
-    # --------------------------------------------------------
-
-    with st.expander("🤖 Machine Learning", expanded=True):
+    with st.expander(
+        "🤖 Machine Learning",
+        expanded=True
+    ):
 
         st.markdown("**Final Model**")
 
@@ -610,11 +609,10 @@ with st.sidebar:
             "🔤 Word TF-IDF + Character TF-IDF"
         )
 
-    # --------------------------------------------------------
-    # How to Use
-    # --------------------------------------------------------
-
-    with st.expander("💡 How to Use", expanded=False):
+    with st.expander(
+        "💡 How to Use",
+        expanded=False
+    ):
 
         st.markdown(
             """
@@ -630,11 +628,10 @@ with st.sidebar:
             """
         )
 
-    # --------------------------------------------------------
-    # Project
-    # --------------------------------------------------------
-
-    with st.expander("📚 Project", expanded=False):
+    with st.expander(
+        "📚 Project",
+        expanded=False
+    ):
 
         st.markdown(
             """
@@ -657,12 +654,14 @@ with st.sidebar:
     st.caption(
         "🛡️ Multilingual Phishing & Spam Detection"
     )
+
+
 # ============================================================
 # HEADER
 # ============================================================
 
 st.markdown(
-    "#  🕵️‍♂️  Multilingual Phishing & Spam Detection"
+    "# 🕵️‍♂️ Multilingual Phishing & Spam Detection"
 )
 
 st.markdown(
@@ -680,15 +679,11 @@ st.divider()
 # MESSAGE ANALYZER
 # ============================================================
 
-render_html("""
-<div class="main-title">
-    🔍 Message Analyzer
-</div>
+st.subheader("🔍 Message Analyzer")
 
-<div class="subtitle">
-    Enter a message below and analyze it instantly.
-</div>
-""")
+st.caption(
+    "Enter a message below and analyze it instantly."
+)
 
 
 # ============================================================
@@ -696,6 +691,7 @@ render_html("""
 # ============================================================
 
 if "sample_message" not in st.session_state:
+
     st.session_state.sample_message = ""
 
 
@@ -714,6 +710,8 @@ with sample1:
             "ticket worth $1000. Claim now!"
         )
 
+        st.rerun()
+
 
 with sample2:
 
@@ -725,6 +723,8 @@ with sample2:
         st.session_state.sample_message = (
             "कल मिलते हैं, ठीक है?"
         )
+
+        st.rerun()
 
 
 with sample3:
@@ -738,6 +738,8 @@ with sample3:
             "Yaar FREE iPhone jeetne ke liye "
             "is link pe click kar jaldi!"
         )
+
+        st.rerun()
 
 
 # ============================================================
@@ -835,44 +837,57 @@ if analyze:
             text=f"Model confidence: {confidence:.1f}%"
         )
 
+
 # ============================================================
 # DETECTION PIPELINE
 # ============================================================
 
 st.markdown("---")
 
-st.subheader("⚙️ Detection Pipeline")
+st.subheader(
+    "⚙️ Detection Pipeline"
+)
 
 st.caption(
     "The system combines multilingual preprocessing "
     "with machine-learning based classification."
 )
 
+
 col1, col2, col3, col4 = st.columns(4)
 
+
 with col1:
+
     st.info(
         "🌐 **Multilingual**\n\n"
         "English, Hindi and Hinglish message detection."
     )
 
+
 with col2:
+
     st.info(
         "🧹 **NLP Processing**\n\n"
         "Text cleaning, normalization, stopword removal and stemming."
     )
 
+
 with col3:
+
     st.info(
         "🔤 **TF-IDF Features**\n\n"
         "Word-level and character-level text features."
     )
 
+
 with col4:
+
     st.info(
         "🧠 **Linear SVM**\n\n"
         "Machine learning classification for message detection."
     )
+
 
 # ============================================================
 # INFORMATION TABS
@@ -888,6 +903,10 @@ tab1, tab2, tab3 = st.tabs(
     ]
 )
 
+
+# ============================================================
+# ABOUT PROJECT
+# ============================================================
 
 with tab1:
 
@@ -908,46 +927,70 @@ with tab1:
     )
 
 
+# ============================================================
+# EXAMPLE MESSAGES
+# ============================================================
+
 with tab2:
 
     st.markdown(
-        "### 🚨 Suspicious Examples"
+        "### 🧪 Try an Example Message"
     )
 
-    st.code(
+    examples = [
         "Congratulations! You have won a free lottery ticket. Claim now!",
-        language=None
-    )
-
-    st.code(
         "URGENT: Your SBI account is blocked. Share OTP to verify.",
-        language=None
-    )
-
-    st.code(
         "Yaar FREE iPhone jeetne ke liye is link pe click kar jaldi!",
-        language=None
-    )
+        "Hey, are you free for dinner tonight?",
+        "कल मिलते हैं, ठीक है?",
+        "Bhai kal cricket dekhne chalte hain?"
+    ]
 
     st.markdown(
-        "### ✅ Legitimate Examples"
+        "Choose an example manually or let the system select one randomly."
     )
 
-    st.code(
-        "Hey, are you free for dinner tonight?",
-        language=None
+    selected_example = st.selectbox(
+        "Select Example",
+        examples,
+        label_visibility="collapsed"
     )
 
-    st.code(
-        "कल मिलते हैं, ठीक है?",
-        language=None
+    select_col1, select_col2 = st.columns(2)
+
+    with select_col1:
+
+        if st.button(
+            "📌 Use Selected Example",
+            use_container_width=True
+        ):
+
+            st.session_state.sample_message = selected_example
+
+            st.rerun()
+
+    with select_col2:
+
+        if st.button(
+            "🎲 Choose Random Example",
+            use_container_width=True
+        ):
+
+            st.session_state.sample_message = random.choice(
+                examples
+            )
+
+            st.rerun()
+
+    st.info(
+        "💡 After selecting an example, click "
+        "**🔎 Analyze Message** above to test the model."
     )
 
-    st.code(
-        "Bhai kal cricket dekhne chalte hain?",
-        language=None
-    )
 
+# ============================================================
+# TECHNOLOGY
+# ============================================================
 
 with tab3:
 

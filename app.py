@@ -746,30 +746,6 @@ st.markdown(
 }
 
 
-/* ======================================================
-   HIDE STREAMLIT TOOLBAR ITEMS
-   ====================================================== */
-
-button[aria-label*="Star"],
-button[title*="Star"] {
-
-    display:
-    none !important;
-}
-
-button[aria-label*="Edit"],
-button[title*="Edit"] {
-
-    display:
-    none !important;
-}
-
-a[aria-label*="GitHub"],
-a[title*="GitHub"] {
-
-    display:
-    none !important;
-}
 
 </style>
     """,

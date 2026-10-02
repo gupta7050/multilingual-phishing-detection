@@ -727,48 +727,92 @@ spam_examples = [
 
 hindi_examples = [
 
-    "कल मिलते हैं, ठीक है?",
+    "आपका बैंक खाता बंद होने वाला है। तुरंत KYC अपडेट करने के लिए इस लिंक पर क्लिक करें।",
 
-    "मुझे आज कॉलेज जाना है।",
+    "बधाई हो! आपने ₹5,00,000 की लॉटरी जीती है। इनाम पाने के लिए अपना OTP भेजें।",
 
-    "क्या तुम शाम को मेरे साथ बाजार चलोगे?",
+    "आपके मोबाइल नंबर पर ₹10,000 का कैशबैक मिला है। अभी लिंक पर क्लिक करके दावा करें।",
 
-    "आज मौसम बहुत अच्छा है।",
+    "आपका बिजली बिल बकाया है। कनेक्शन कटने से बचने के लिए तुरंत भुगतान करें।",
 
-    "माँ ने कहा है कि जल्दी घर आ जाना।",
+    "आपका बैंक अकाउंट सस्पेंड कर दिया गया है। सत्यापन के लिए अपना ATM PIN और OTP साझा करें।",
 
-    "कल हमारी क्लास सुबह दस बजे है।",
+    "आपके नाम पर एक पार्सल आया है। डिलीवरी पूरी करने के लिए ₹50 का शुल्क जमा करें।",
 
-    "तुमने खाना खा लिया क्या?",
+    "आपका KYC समाप्त हो गया है। बैंक खाता बंद होने से बचाने के लिए अभी अपनी जानकारी अपडेट करें।",
 
-    "आज शाम को क्रिकेट खेलने चलें?"
+    "आपको सरकारी योजना के तहत ₹25,000 की सहायता राशि मिली है। प्राप्त करने के लिए बैंक विवरण भेजें।",
+
+    "आपका क्रेडिट कार्ड ब्लॉक होने वाला है। इसे सक्रिय करने के लिए इस लिंक पर क्लिक करें।",
+
+    "आपने ऑनलाइन प्रतियोगिता में पहला पुरस्कार जीता है। पुरस्कार पाने के लिए अपना बैंक विवरण दें।",
+
+    "आपके खाते में संदिग्ध गतिविधि पाई गई है। तुरंत OTP बताकर अपना खाता सत्यापित करें।",
+
+    "आज आखिरी मौका है! ₹1 लाख का इनाम पाने के लिए अभी अपना मोबाइल नंबर और बैंक विवरण भेजें।",
+
+    "आपका SIM कार्ड बंद होने वाला है। KYC सत्यापन के लिए इस लिंक पर अपनी जानकारी भरें।",
+
+    "बधाई हो! आपका नंबर lucky draw में चुना गया है। ₹2 लाख का इनाम पाने के लिए processing fee जमा करें।",
+
+    "आपके बैंक खाते में ₹15,000 जमा किए गए हैं। राशि प्राप्त करने के लिए पहले ₹500 का शुल्क दें।",
+
+    "आपका PAN कार्ड अपडेट नहीं है। खाता बंद होने से बचाने के लिए तुरंत अपना PAN और OTP साझा करें.",
+
+    "आपके नाम से एक loan मंजूर हुआ है। पैसे प्राप्त करने के लिए पहले registration fee जमा करें।",
+
+    "आपका UPI बंद होने वाला है। दोबारा सक्रिय करने के लिए अपना UPI PIN दर्ज करें।",
+
+    "आपके खाते में cashback pending है। उसे प्राप्त करने के लिए दिए गए लिंक पर क्लिक करें।",
+
+    "आपको मुफ्त मोबाइल फोन मिला है। डिलीवरी के लिए ₹999 का शुल्क जमा करें।"
 ]
-
-
 # ------------------------------------------------------------
 # RANDOM HINGLISH MESSAGES
 # ------------------------------------------------------------
 
 hinglish_examples = [
 
-    "Yaar FREE iPhone jeetne ke liye is link pe click kar jaldi!",
+    "Bhai tumne ₹50,000 ka lottery prize jeeta hai, claim karne ke liye OTP bhejo!",
 
-    "Bhai kal cricket dekhne chalte hain?",
+    "Your bank account KYC expire ho gaya hai, account block hone se bachane ke liye link pe click karo.",
 
-    "Yaar aaj college kab jana hai?",
+    "Congratulations! Tumhare number par ₹10,000 cashback mila hai, abhi claim karo.",
 
-    "Bhai mujhe kal assignment submit karna hai.",
+    "Bhai tumhara bank account suspend hone wala hai, verification ke liye OTP share karo.",
 
-    "Tum free ho kya? Aaj movie dekhne chalte hain.",
+    "Yaar tumne lucky draw mein iPhone jeeta hai, delivery ke liye ₹999 payment karo.",
 
-    "Yaar ye offer bahut amazing hai, jaldi check kar!",
+    "Tumhara electricity bill pending hai, connection cut hone se bachane ke liye abhi payment karo.",
 
-    "Bhai kal exam ke liye preparation kiya?",
+    "Bhai tumhare naam pe ek parcel aaya hai, delivery complete karne ke liye ₹50 fee pay karo.",
 
-    "Aaj evening mein chai peene chalte hain?"
+    "Tumhara KYC update nahi hai, account close hone se pehle apna Aadhaar aur OTP send karo.",
+
+    "Congratulations bhai! Tumhe ₹2 lakh ka reward mila hai, processing fee pay karke claim karo.",
+
+    "Yaar tumhara SIM band hone wala hai, KYC verify karne ke liye is link pe click karo.",
+
+    "Bhai tumhare account mein suspicious activity mili hai, verification ke liye OTP batao.",
+
+    "Tumhe government scheme ke through ₹25,000 mil rahe hain, bank details send karo.",
+
+    "Bhai tumhara credit card block hone wala hai, activate karne ke liye link open karo.",
+
+    "FREE cashback jeetne ka chance hai! Bas apna UPI PIN enter karo aur reward claim karo.",
+
+    "Yaar tumhara loan approve ho gaya hai, amount receive karne ke liye registration fee pay karo.",
+
+    "Bhai tumhare mobile number ne lucky draw jeeta hai, prize lene ke liye processing charges do.",
+
+    "Tumhara PAN update nahi hai, bank account safe rakhne ke liye PAN aur OTP share karo.",
+
+    "Bhai ₹1 lakh ka special offer mila hai, sirf aaj claim karna hai. Jaldi link pe click karo.",
+
+    "Your UPI account suspend hone wala hai, reactivate karne ke liye UPI PIN enter karo.",
+
+    "Yaar tumhare account mein cashback pending hai, receive karne ke liye verification complete karo."
 ]
-
-
 sample1, sample2, sample3 = st.columns(3)
 
 

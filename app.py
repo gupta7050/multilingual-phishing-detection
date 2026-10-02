@@ -290,48 +290,126 @@ st.markdown(
     """
     <style>
 
-    /* MAIN BACKGROUND */
+    /* ======================================================
+       MAIN HACKER / CYBERSECURITY BACKGROUND
+       ====================================================== */
 
     .stApp {
+
         background:
+        radial-gradient(
+            circle at 15% 20%,
+            rgba(0, 255, 136, 0.10),
+            transparent 28%
+        ),
+
+        radial-gradient(
+            circle at 85% 80%,
+            rgba(0, 255, 136, 0.08),
+            transparent 30%
+        ),
+
         linear-gradient(
             135deg,
-            #eef6ff 0%,
-            #f5f3ff 50%,
-            #eef2ff 100%
-        );
+            #020806 0%,
+            #06130d 45%,
+            #020807 100%
+        ) !important;
+
+        color:
+        #e8fff4 !important;
     }
 
 
-    /* SIDEBAR */
+    /* ======================================================
+       CYBER GRID
+       ====================================================== */
+
+    .stApp::before {
+
+        content: "";
+
+        position: fixed;
+
+        inset: 0;
+
+        background-image:
+
+        linear-gradient(
+            rgba(0, 255, 136, 0.035) 1px,
+            transparent 1px
+        ),
+
+        linear-gradient(
+            90deg,
+            rgba(0, 255, 136, 0.035) 1px,
+            transparent 1px
+        );
+
+        background-size:
+        40px 40px;
+
+        pointer-events:
+        none;
+
+        z-index:
+        0;
+    }
+
+
+    /* ======================================================
+       MAIN CONTENT
+       ====================================================== */
+
+    .main .block-container {
+
+        position:
+        relative;
+
+        z-index:
+        1;
+    }
+
+
+    /* ======================================================
+       SIDEBAR
+       ====================================================== */
 
     section[data-testid="stSidebar"] {
 
         background:
         linear-gradient(
             180deg,
-            #111827 0%,
-            #172554 50%,
-            #1e1b4b 100%
-        );
+            #010504 0%,
+            #03150d 50%,
+            #020a06 100%
+        ) !important;
+
+        border-right:
+        1px solid
+        rgba(0, 255, 136, 0.20);
     }
 
     section[data-testid="stSidebar"] * {
-        color: #ffffff;
+
+        color:
+        #d9ffeb;
     }
 
 
-    /* SIDEBAR EXPANDERS */
+    /* ======================================================
+       SIDEBAR EXPANDERS
+       ====================================================== */
 
     section[data-testid="stSidebar"]
     div[data-testid="stExpander"] {
 
         background:
-        rgba(30, 41, 82, 0.90) !important;
+        rgba(3, 25, 16, 0.90) !important;
 
         border:
         1px solid
-        rgba(129, 140, 248, 0.35) !important;
+        rgba(0, 255, 136, 0.25) !important;
 
         border-radius:
         15px !important;
@@ -340,54 +418,100 @@ st.markdown(
         10px !important;
 
         box-shadow:
-        0 4px 15px
-        rgba(0, 0, 0, 0.20) !important;
+        0 0 12px
+        rgba(0, 255, 136, 0.06) !important;
     }
+
 
     section[data-testid="stSidebar"]
     div[data-testid="stExpander"]
     summary {
 
         color:
-        #ffffff !important;
+        #00ff88 !important;
 
         font-weight:
         600 !important;
     }
 
+
     section[data-testid="stSidebar"]
     div[data-testid="stExpander"]:hover {
 
         background:
-        rgba(49, 46, 129, 0.95) !important;
+        rgba(5, 45, 27, 0.95) !important;
 
         border-color:
-        rgba(129, 140, 248, 0.70) !important;
+        rgba(0, 255, 136, 0.65) !important;
+
+        box-shadow:
+        0 0 15px
+        rgba(0, 255, 136, 0.15) !important;
     }
 
 
-    /* HEADINGS */
+    /* ======================================================
+       SIDEBAR INFO BOX
+       ====================================================== */
+
+    section[data-testid="stSidebar"]
+    div[data-testid="stAlert"] {
+
+        background:
+        rgba(0, 45, 25, 0.75) !important;
+
+        border:
+        1px solid
+        rgba(0, 255, 136, 0.30) !important;
+    }
+
+
+    /* ======================================================
+       HEADINGS
+       ====================================================== */
 
     h1 {
+
         color:
-        #172554 !important;
+        #00ff88 !important;
 
         font-weight:
         800 !important;
+
+        text-shadow:
+        0 0 8px
+        rgba(0, 255, 136, 0.45),
+
+        0 0 20px
+        rgba(0, 255, 136, 0.20) !important;
     }
+
 
     h2,
     h3 {
 
         color:
-        #1e293b !important;
+        #e8fff4 !important;
 
         font-weight:
         700 !important;
     }
 
 
-    /* BUTTONS */
+    /* ======================================================
+       NORMAL TEXT
+       ====================================================== */
+
+    p {
+
+        color:
+        #b7d9c8;
+    }
+
+
+    /* ======================================================
+       BUTTONS
+       ====================================================== */
 
     .stButton > button {
 
@@ -396,37 +520,56 @@ st.markdown(
 
         border:
         1px solid
-        #c7d2fe !important;
+        rgba(0, 255, 136, 0.45) !important;
 
         background:
         linear-gradient(
             135deg,
-            #ffffff,
-            #eef2ff
+            #071b12,
+            #0b281a
         ) !important;
 
         color:
-        #1e1b4b !important;
+        #00ff88 !important;
 
         font-weight:
         600 !important;
 
         min-height:
         44px !important;
+
+        box-shadow:
+        0 0 10px
+        rgba(0, 255, 136, 0.08) !important;
+
+        transition:
+        all 0.2s ease !important;
     }
+
 
     .stButton > button:hover {
 
+        background:
+        #0b2f1d !important;
+
+        color:
+        #ffffff !important;
+
         border-color:
-        #6366f1 !important;
+        #00ff88 !important;
 
         box-shadow:
-        0 5px 18px
-        rgba(79, 70, 229, 0.20) !important;
+        0 0 18px
+        rgba(0, 255, 136, 0.30) !important;
+
+        transform:
+        translateY(-1px);
     }
 
 
-    /* TEXT AREA */
+    /* ======================================================
+       TEXT AREA
+       ====================================================== */
 
     textarea {
 
@@ -435,51 +578,171 @@ st.markdown(
 
         border:
         1px solid
-        #c7d2fe !important;
+        rgba(0, 255, 136, 0.45) !important;
 
         background:
-        #ffffff !important;
+        #020b07 !important;
 
         color:
-        #111827 !important;
+        #eafff3 !important;
 
         font-size:
         16px !important;
+
+        box-shadow:
+        0 0 12px
+        rgba(0, 255, 136, 0.08) !important;
     }
 
 
-    /* ALERTS */
+    textarea:focus {
+
+        border-color:
+        #00ff88 !important;
+
+        box-shadow:
+        0 0 15px
+        rgba(0, 255, 136, 0.25) !important;
+    }
+
+
+    /* ======================================================
+       TEXT AREA LABEL
+       ====================================================== */
+
+    label {
+
+        color:
+        #9de8bd !important;
+
+        font-weight:
+        600 !important;
+    }
+
+
+    /* ======================================================
+       ALERTS
+       ====================================================== */
 
     div[data-testid="stAlert"] {
 
+        background:
+        rgba(3, 25, 16, 0.90) !important;
+
+        border:
+        1px solid
+        rgba(0, 255, 136, 0.25) !important;
+
+        color:
+        #d9ffeb !important;
+
         border-radius:
-        14px !important;
+        12px !important;
     }
 
 
-    /* METRICS */
+    /* ======================================================
+       METRICS
+       ====================================================== */
 
     div[data-testid="stMetric"] {
 
         background:
-        rgba(255,255,255,0.75);
+        rgba(3, 20, 13, 0.85) !important;
 
         border:
         1px solid
-        rgba(129,140,248,0.25);
+        rgba(0, 255, 136, 0.25) !important;
 
         border-radius:
-        14px;
+        14px !important;
 
         padding:
-        12px;
+        12px !important;
+
+        box-shadow:
+        0 0 15px
+        rgba(0, 255, 136, 0.08) !important;
     }
 
 
-    /* FOOTER */
+    div[data-testid="stMetricLabel"] {
+
+        color:
+        #8fbda5 !important;
+    }
+
+
+    div[data-testid="stMetricValue"] {
+
+        color:
+        #00ff88 !important;
+    }
+
+
+    /* ======================================================
+       PROGRESS BAR
+       ====================================================== */
+
+    div[data-testid="stProgressBar"] {
+
+        background:
+        #092016 !important;
+    }
+
+
+    div[data-testid="stProgressBar"]
+    div[role="progressbar"] {
+
+        background:
+        #00ff88 !important;
+
+        box-shadow:
+        0 0 10px
+        rgba(0, 255, 136, 0.35);
+    }
+
+
+    /* ======================================================
+       TABS
+       ====================================================== */
+
+    button[data-baseweb="tab"] {
+
+        color:
+        #9de8bd !important;
+
+        font-weight:
+        600 !important;
+    }
+
+
+    button[data-baseweb="tab"][aria-selected="true"] {
+
+        color:
+        #00ff88 !important;
+    }
+
+
+    /* ======================================================
+       DIVIDERS
+       ====================================================== */
+
+    hr {
+
+        border-color:
+        rgba(0, 255, 136, 0.15) !important;
+    }
+
+
+    /* ======================================================
+       FOOTER
+       ====================================================== */
 
     footer {
-        visibility: hidden;
+
+        visibility:
+        hidden;
     }
 
     </style>

@@ -8,7 +8,7 @@ from pathlib import Path
 import nltk
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
-from scipy.sparse import hstack as sp_hstack
+from scipy.sparse import hstack
 
 
 # ============================================================
@@ -16,7 +16,7 @@ from scipy.sparse import hstack as sp_hstack
 # ============================================================
 
 st.set_page_config(
-    page_title="Multilingual Fraud Detection",
+    page_title="Multilingual Phishing & Spam Detection",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -24,78 +24,68 @@ st.set_page_config(
 
 
 # ============================================================
-# HELPER FOR HTML
-# ============================================================
-
-def render_html(content):
-    st.markdown(
-        textwrap.dedent(content),
-        unsafe_allow_html=True
-    )
-
-
-# ============================================================
 # NLTK
 # ============================================================
 
-nltk.download("stopwords", quiet=True)
-
-
-# ============================================================
-# LOAD MODEL FILES
-# ============================================================
-
-BASE_DIR = Path(__file__).parent
-
-
-@st.cache_resource
-def load_models():
-
-    with open(BASE_DIR / "best_model.pkl", "rb") as f:
-        model = pickle.load(f)
-
-    with open(BASE_DIR / "tfidf_word.pkl", "rb") as f:
-        word_vectorizer = pickle.load(f)
-
-    with open(BASE_DIR / "tfidf_char.pkl", "rb") as f:
-        char_vectorizer = pickle.load(f)
-
-    with open(BASE_DIR / "label_encoder.pkl", "rb") as f:
-        label_encoder = pickle.load(f)
-
-    return model, word_vectorizer, char_vectorizer, label_encoder
-
-
-best_clf, tfidf_word, tfidf_char, encoder = load_models()
-
-
-# ============================================================
-# PREPROCESSING
-# ============================================================
+try:
+    nltk.data.find("corpora/stopwords")
+except LookupError:
+    nltk.download("stopwords")
 
 ps = PorterStemmer()
-
 english_stops = set(stopwords.words("english"))
 
 hinglish_stops = {
     "hai", "hain", "ho", "tha", "thi", "the",
     "ka", "ki", "ke", "ko", "se", "me", "mein",
-    "pe", "par", "aur", "ya", "bhi",
-    "yeh", "ye", "woh", "wo", "ek", "koi",
-    "kuch", "sab", "apna", "apni", "apne",
-    "uska", "uski", "uske",
-    "mera", "meri", "mere",
-    "tera", "teri", "tere",
-    "humara", "tumhara", "unka",
-    "kya", "kyun", "kaise", "kab",
-    "kahan", "kaun",
-    "nahi", "nahin", "mat", "na",
-    "ji", "bhai", "yaar", "dost",
+    "pe", "par", "aur", "ya", "bhi", "yeh", "ye",
+    "woh", "wo", "ek", "koi", "kuch", "sab",
+    "apna", "apni", "apne", "uska", "uski", "uske",
+    "mera", "meri", "mere", "tera", "teri", "tere",
+    "humara", "tumhara", "unka", "kya", "kyun",
+    "kaise", "kab", "kahan", "kaun", "nahi", "nahin",
+    "mat", "na", "ji", "bhai", "yaar", "dost",
     "sir", "madam"
 }
 
 all_stops = english_stops | hinglish_stops
 
+
+# ============================================================
+# HISTORY
+# ============================================================
+
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+
+# ============================================================
+# LOAD MODELS
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+try:
+    with open(BASE_DIR / "tfidf_word.pkl", "rb") as f:
+        tfidf_word = pickle.load(f)
+
+    with open(BASE_DIR / "tfidf_char.pkl", "rb") as f:
+        tfidf_char = pickle.load(f)
+
+    with open(BASE_DIR / "best_model.pkl", "rb") as f:
+        best_clf = pickle.load(f)
+
+    with open(BASE_DIR / "label_encoder.pkl", "rb") as f:
+        encoder = pickle.load(f)
+
+except Exception as e:
+    st.error(f"Model loading error: {e}")
+    st.stop()
+
+
+# ============================================================
+# PREPROCESSING
+# ============================================================
 
 def preprocess_multilingual(text):
 
@@ -164,25 +154,34 @@ def preprocess_multilingual(text):
 # LANGUAGE DETECTION
 # ============================================================
 
-def detect_language(message):
+def detect_language(text):
 
-    try:
+    text = str(text)
 
-        from langdetect import detect
+    hindi_chars = len(
+        re.findall(
+            r"[\u0900-\u097F]",
+            text
+        )
+    )
 
-        raw_lang = detect(str(message))
+    english_chars = len(
+        re.findall(
+            r"[A-Za-z]",
+            text
+        )
+    )
 
-        if raw_lang == "hi":
-            return "Hindi"
-
-        if raw_lang == "en":
-            return "English"
-
+    if hindi_chars > 0 and english_chars > 0:
         return "Hinglish"
 
-    except Exception:
+    if hindi_chars > 0:
+        return "Hindi"
 
-        return "Hinglish"
+    if english_chars > 0:
+        return "English"
+
+    return "Unknown"
 
 
 # ============================================================
@@ -195,399 +194,304 @@ def predict_message(message):
 
     processed = preprocess_multilingual(message)
 
-    X_word = tfidf_word.transform([processed])
-    X_char = tfidf_char.transform([processed])
+    X_w = tfidf_word.transform(
+        [processed]
+    )
 
-    X = sp_hstack([X_word, X_char])
+    X_c = tfidf_char.transform(
+        [processed]
+    )
 
-    label = best_clf.predict(X)[0]
+    X = hstack(
+        [X_w, X_c]
+    )
+
+    predicted_label = best_clf.predict(X)[0]
+
+    try:
+        decoded_label = encoder.inverse_transform(
+            [predicted_label]
+        )[0]
+
+        label_text = str(decoded_label).lower()
+
+        if (
+            "spam" in label_text
+            or "fraud" in label_text
+            or "phishing" in label_text
+        ):
+            result = "SPAM / FRAUD"
+        else:
+            result = "LEGITIMATE"
+
+    except Exception:
+
+        if predicted_label == 1:
+            result = "SPAM / FRAUD"
+        else:
+            result = "LEGITIMATE"
 
     if hasattr(best_clf, "predict_proba"):
 
-        probabilities = best_clf.predict_proba(X)[0]
+        probability = best_clf.predict_proba(X)[0]
 
-        confidence = float(max(probabilities) * 100)
+        confidence = max(probability) * 100
 
     else:
 
         confidence = 0.0
 
-    if label == 1:
-
-        result = "SPAM / FRAUD"
-
-    else:
-
-        result = "LEGITIMATE"
-
-    return language, result, confidence
+    return (
+        language,
+        result,
+        confidence
+    )
 
 
 # ============================================================
-# CUSTOM CSS
+# CUSTOM HTML
 # ============================================================
 
-st.markdown("""
-<style>
-
-/* =========================================================
-   MAIN CYBERSECURITY BACKGROUND
-   ========================================================= */
-
-.stApp {
-    background:
-        radial-gradient(
-            circle at 8% 10%,
-            rgba(99, 102, 241, 0.20),
-            transparent 28%
-        ),
-        radial-gradient(
-            circle at 92% 12%,
-            rgba(14, 165, 233, 0.22),
-            transparent 30%
-        ),
-        radial-gradient(
-            circle at 80% 90%,
-            rgba(168, 85, 247, 0.16),
-            transparent 30%
-        ),
-        linear-gradient(
-            135deg,
-            #f8faff 0%,
-            #eef4ff 45%,
-            #f5f1ff 100%
-        );
-
-    min-height: 100vh;
-}
-
-
-/* =========================================================
-   REMOVE DEFAULT STREAMLIT ELEMENTS
-   ========================================================= */
-
-#MainMenu {
-    visibility: hidden;
-}
-
-footer {
-    visibility: hidden;
-}
-
-header {
-    background: transparent !important;
-}
-
-
-/* =========================================================
-   MAIN CONTENT
-   ========================================================= */
-
-.block-container {
-    padding-top: 2.5rem;
-    padding-bottom: 3rem;
-}
-
-
-/* =========================================================
-   TITLE
-   ========================================================= */
-
-.main-title {
-    color: #111827 !important;
-
-    font-size: 42px !important;
-
-    font-weight: 850 !important;
-
-    letter-spacing: -1.2px;
-
-    line-height: 1.15;
-}
-
-
-.subtitle {
-    color: #475569 !important;
-
-    font-size: 16px !important;
-
-    line-height: 1.6;
-
-    margin-bottom: 25px;
-}
-
-
-/* =========================================================
-   HORIZONTAL LINES
-   ========================================================= */
-
-hr {
-    border: none !important;
-
-    border-top: 1px solid rgba(148,163,184,0.28) !important;
-
-    margin: 25px 0 !important;
-}
-
-
-/* =========================================================
-   TEXT AREA
-   ========================================================= */
-
-textarea {
-    background: rgba(255,255,255,0.92) !important;
-
-    border: 1px solid #cbd5e1 !important;
-
-    border-radius: 15px !important;
-
-    color: #0f172a !important;
-
-    font-size: 16px !important;
-
-    box-shadow:
-        0 8px 25px rgba(30,64,175,0.06) !important;
-}
-
-textarea:focus {
-    border: 2px solid #6366f1 !important;
-
-    box-shadow:
-        0 0 0 4px rgba(99,102,241,0.12) !important;
-}
-
-
-/* =========================================================
-   BUTTONS
-   ========================================================= */
-
-.stButton > button {
-
-    border: 1px solid rgba(148,163,184,0.35) !important;
-
-    border-radius: 13px !important;
-
-    background: rgba(255,255,255,0.90) !important;
-
-    color: #1e293b !important;
-
-    font-weight: 700 !important;
-
-    min-height: 48px !important;
-
-    transition: all 0.2s ease !important;
-
-    box-shadow:
-        0 5px 18px rgba(30,64,175,0.06) !important;
-}
-
-.stButton > button:hover {
-
-    border-color: #6366f1 !important;
-
-    background: #eef2ff !important;
-
-    transform: translateY(-2px);
-
-    box-shadow:
-        0 10px 25px rgba(99,102,241,0.16) !important;
-}
-
-
-/* =========================================================
-   ANALYZE BUTTON
-   ========================================================= */
-
-.stButton > button[kind="primary"] {
-
-    background:
-        linear-gradient(
-            90deg,
-            #0ea5e9,
-            #2563eb,
-            #7c3aed
-        ) !important;
-
-    border: none !important;
-
-    color: white !important;
-
-    font-size: 17px !important;
-
-    min-height: 52px !important;
-
-    box-shadow:
-        0 10px 28px rgba(79,70,229,0.28) !important;
-}
-
-.stButton > button[kind="primary"]:hover {
-
-    background:
-        linear-gradient(
-            90deg,
-            #0284c7,
-            #1d4ed8,
-            #6d28d9
-        ) !important;
-
-    transform: translateY(-2px);
-}
-
-
-/* =========================================================
-   METRICS
-   ========================================================= */
-
-div[data-testid="stMetric"] {
-
-    background: rgba(255,255,255,0.80);
-
-    border: 1px solid rgba(148,163,184,0.25);
-
-    border-radius: 15px;
-
-    padding: 15px;
-
-    box-shadow:
-        0 8px 25px rgba(30,64,175,0.06);
-}
-
-
-/* =========================================================
-   INFO BOXES
-   ========================================================= */
-
-div[data-testid="stAlert"] {
-
-    border-radius: 14px !important;
-}
-
-
-/* =========================================================
-   TABS
-   ========================================================= */
-
-button[data-baseweb="tab"] {
-
-    font-weight: 700 !important;
-
-    color: #475569 !important;
-}
-
-button[data-baseweb="tab"][aria-selected="true"] {
-
-    color: #4f46e5 !important;
-}
-
-
-/* =========================================================
-   SIDEBAR
-   ========================================================= */
-
-section[data-testid="stSidebar"] {
-
-    background:
-        linear-gradient(
-            180deg,
-            #0b1120 0%,
-            #111c3a 55%,
-            #172554 100%
-        );
-}
-
-section[data-testid="stSidebar"] * {
-
-    color: #f8fafc;
-}
-
-
-/* =========================================================
-   SIDEBAR BUTTON
-   ========================================================= */
-
-section[data-testid="stSidebar"] .stButton > button {
-
-    background: rgba(255,255,255,0.08) !important;
-
-    border: 1px solid rgba(255,255,255,0.12) !important;
-
-    color: white !important;
-}
-
-
-/* =========================================================
-   EXPANDER
-   ========================================================= */
-
-section[data-testid="stSidebar"] div[data-testid="stExpander"] {
-
-    background: rgba(30, 41, 82, 0.90) !important;
-
-    border: 1px solid rgba(129, 140, 248, 0.35) !important;
-
-    border-radius: 15px !important;
-
-    margin-bottom: 10px !important;
-
-    box-shadow:
-        0 4px 15px rgba(0, 0, 0, 0.20) !important;
-}
-
-
-/* Expander text */
-
-section[data-testid="stSidebar"] div[data-testid="stExpander"] summary {
-
-    color: #ffffff !important;
-
-    font-weight: 600 !important;
-}
-
-
-/* Expander hover */
-
-section[data-testid="stSidebar"] div[data-testid="stExpander"]:hover {
-
-    background: rgba(49, 46, 129, 0.95) !important;
-
-    border-color: rgba(129, 140, 248, 0.70) !important;
-
-    transition: all 0.2s ease;
-}
-
-
-/* =========================================================
-   CODE EXAMPLES
-   ========================================================= */
-
-div[data-testid="stCode"] {
-
-    border-radius: 12px !important;
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 768px) {
-
-    .main-title {
-        font-size: 30px !important;
+def render_html(html):
+
+    st.markdown(
+        textwrap.dedent(html),
+        unsafe_allow_html=True
+    )
+
+
+# ============================================================
+# CSS
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+
+    /* ======================================================
+       MAIN BACKGROUND
+       ====================================================== */
+
+    .stApp {
+        background:
+            linear-gradient(
+                135deg,
+                #eef6ff 0%,
+                #f5f3ff 50%,
+                #eef2ff 100%
+            );
     }
 
-    .subtitle {
-        font-size: 14px !important;
+
+    /* ======================================================
+       SIDEBAR
+       ====================================================== */
+
+    section[data-testid="stSidebar"] {
+        background:
+            linear-gradient(
+                180deg,
+                #111827 0%,
+                #172554 50%,
+                #1e1b4b 100%
+            );
     }
 
-    .block-container {
-        padding-left: 1rem;
-        padding-right: 1rem;
+    section[data-testid="stSidebar"] * {
+        color: #ffffff;
     }
-}
 
-</style>
-""", unsafe_allow_html=True)
+
+    /* ======================================================
+       SIDEBAR EXPANDERS
+       ====================================================== */
+
+    section[data-testid="stSidebar"]
+    div[data-testid="stExpander"] {
+
+        background:
+            rgba(30, 41, 82, 0.90) !important;
+
+        border:
+            1px solid rgba(129, 140, 248, 0.35) !important;
+
+        border-radius:
+            15px !important;
+
+        margin-bottom:
+            10px !important;
+
+        box-shadow:
+            0 4px 15px rgba(0, 0, 0, 0.20) !important;
+    }
+
+    section[data-testid="stSidebar"]
+    div[data-testid="stExpander"]
+    summary {
+
+        color:
+            #ffffff !important;
+
+        font-weight:
+            600 !important;
+    }
+
+    section[data-testid="stSidebar"]
+    div[data-testid="stExpander"]:hover {
+
+        background:
+            rgba(49, 46, 129, 0.95) !important;
+
+        border-color:
+            rgba(129, 140, 248, 0.70) !important;
+
+        transition:
+            all 0.2s ease;
+    }
+
+
+    /* ======================================================
+       HIDE TOP TOOLBAR ICONS
+       KEEP SHARE
+       ====================================================== */
+
+    button[aria-label*="Star"],
+    button[aria-label*="star"],
+    button[aria-label*="Edit"],
+    button[aria-label*="edit"],
+    a[aria-label*="GitHub"],
+    a[aria-label*="github"] {
+
+        display: none !important;
+    }
+
+
+    /* ======================================================
+       HEADINGS
+       ====================================================== */
+
+    h1 {
+        color: #172554 !important;
+        font-weight: 800 !important;
+    }
+
+    h2, h3 {
+        color: #1e293b !important;
+        font-weight: 700 !important;
+    }
+
+
+    /* ======================================================
+       BUTTONS
+       ====================================================== */
+
+    .stButton > button {
+
+        border-radius:
+            12px !important;
+
+        border:
+            1px solid #c7d2fe !important;
+
+        background:
+            linear-gradient(
+                135deg,
+                #ffffff,
+                #eef2ff
+            ) !important;
+
+        color:
+            #1e1b4b !important;
+
+        font-weight:
+            600 !important;
+
+        min-height:
+            44px !important;
+
+        transition:
+            all 0.2s ease !important;
+    }
+
+    .stButton > button:hover {
+
+        border-color:
+            #6366f1 !important;
+
+        box-shadow:
+            0 5px 18px rgba(79, 70, 229, 0.20) !important;
+
+        transform:
+            translateY(-1px);
+    }
+
+
+    /* ======================================================
+       TEXT AREA
+       ====================================================== */
+
+    textarea {
+
+        border-radius:
+            14px !important;
+
+        border:
+            1px solid #c7d2fe !important;
+
+        background:
+            #ffffff !important;
+
+        color:
+            #111827 !important;
+
+        font-size:
+            16px !important;
+    }
+
+
+    /* ======================================================
+       INFO BOXES
+       ====================================================== */
+
+    div[data-testid="stAlert"] {
+
+        border-radius:
+            14px !important;
+    }
+
+
+    /* ======================================================
+       METRICS
+       ====================================================== */
+
+    div[data-testid="stMetric"] {
+
+        background:
+            rgba(255,255,255,0.75);
+
+        border:
+            1px solid rgba(129,140,248,0.25);
+
+        border-radius:
+            14px;
+
+        padding:
+            12px;
+    }
+
+
+    /* ======================================================
+       FOOTER
+       ====================================================== */
+
+    footer {
+        visibility: hidden;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
 # ============================================================
@@ -607,64 +511,102 @@ with st.sidebar:
     st.divider()
 
     st.success(
-        "🟢 MODEL ONLINE"
+        "MODEL ONLINE"
     )
 
+
+    # --------------------------------------------------------
+    # SUPPORTED LANGUAGES
+    # --------------------------------------------------------
+
     with st.expander(
-        "🌐 Supported Languages",
+        "Supported Languages",
         expanded=False
     ):
 
-        st.markdown(" **English**")
-        st.markdown(" **Hindi**")
-        st.markdown(" **Hinglish**")
+        st.markdown(
+            "**English**"
+        )
+
+        st.markdown(
+            "**हिंदी**"
+        )
+
+        st.markdown(
+            "**Hinglish**"
+        )
+
+
+    # --------------------------------------------------------
+    # MACHINE LEARNING
+    # --------------------------------------------------------
 
     with st.expander(
-        "🤖 Machine Learning",
+        "Machine Learning",
         expanded=True
     ):
 
-        st.markdown("**Final Model**")
-
-        st.info(
-            "🧠 Linear SVM"
+        st.markdown(
+            "**Final Model**"
         )
 
-        st.markdown("**Features**")
+        st.info(
+            "Linear SVM"
+        )
+
+        st.markdown(
+            "**Features**"
+        )
 
         st.info(
-            "🔤 Word TF-IDF + Character TF-IDF"
+            "Word TF-IDF + Character TF-IDF"
         )
+
+
+    # --------------------------------------------------------
+    # HOW TO USE
+    # --------------------------------------------------------
 
     with st.expander(
-        "💡 How to Use",
+        "How to Use",
         expanded=False
     ):
 
         st.markdown(
             """
-            **1️⃣** Enter a message.
+            **1.** Enter a message.
 
-            **2️⃣** Click **Analyze Message**.
+            **2.** Click **Analyze Message**.
 
-            **3️⃣** Check the detected language.
+            **3.** Check the detected language.
 
-            **4️⃣** View the prediction.
+            **4.** View the prediction.
 
-            **5️⃣** Check the confidence.
+            **5.** Check the confidence.
+
+            **6.** Open **History** to view previous analyses.
             """
         )
 
+
+    # --------------------------------------------------------
+    # PROJECT
+    # --------------------------------------------------------
+
     with st.expander(
-        "📚 Project",
+        "Project",
         expanded=False
     ):
 
         st.markdown(
             """
+            **Type**
+
+            Final Year Academic Project
+
             **Domain**
 
-            Machine Learning + NLP
+            AI-Driven Cybersecurity & Multilingual NLP
 
             **Languages**
 
@@ -672,10 +614,55 @@ with st.sidebar:
             """
         )
 
+
+    # --------------------------------------------------------
+    # HISTORY
+    # --------------------------------------------------------
+
+    with st.expander(
+        "History",
+        expanded=False
+    ):
+
+        if not st.session_state.history:
+
+            st.info(
+                "No analysis history yet."
+            )
+
+        else:
+
+            for i, item in enumerate(
+                reversed(st.session_state.history),
+                1
+            ):
+
+                st.markdown(
+                    f"**Analysis {i}**"
+                )
+
+                st.write(
+                    "**Message:**",
+                    item["message"]
+                )
+
+                st.write(
+                    "**Result:**",
+                    item["result"]
+                )
+
+                st.write(
+                    "**Language:**",
+                    item["language"]
+                )
+
+                st.divider()
+
+
     st.divider()
 
     st.caption(
-        "🛡️ Multilingual Phishing & Spam Detection"
+        "Multilingual Phishing & Spam Detection"
     )
 
 
@@ -687,15 +674,9 @@ st.markdown(
     "# 🕵️‍♂️ Multilingual Phishing & Spam Detection"
 )
 
-st.markdown(
-    """
-    Detect spam, phishing, fraudulent and unwanted messages
-    in **English, Hindi and Hinglish** using Machine Learning
-    and Natural Language Processing.
-    """
+st.caption(
+    "AI-powered detection of suspicious messages across English, Hindi and Hinglish."
 )
-
-st.divider()
 
 
 # ============================================================
@@ -720,10 +701,6 @@ if "sample_message" not in st.session_state:
     st.session_state.sample_message = ""
 
 
-# ------------------------------------------------------------
-# RANDOM SPAM MESSAGES
-# ------------------------------------------------------------
-
 spam_examples = [
 
     "Congratulations! You have won a free lottery ticket worth $1000. Claim now!",
@@ -741,12 +718,9 @@ spam_examples = [
     "You have won a lucky draw prize of ₹5,00,000. Send your details to claim.",
 
     "Your mobile number has won a special reward. Claim it before midnight!"
+
 ]
 
-
-# ------------------------------------------------------------
-# RANDOM HINDI MESSAGES
-# ------------------------------------------------------------
 
 hindi_examples = [
 
@@ -780,7 +754,7 @@ hindi_examples = [
 
     "आपके बैंक खाते में ₹15,000 जमा किए गए हैं। राशि प्राप्त करने के लिए पहले ₹500 का शुल्क दें।",
 
-    "आपका PAN कार्ड अपडेट नहीं है। खाता बंद होने से बचाने के लिए तुरंत अपना PAN और OTP साझा करें.",
+    "आपका PAN कार्ड अपडेट नहीं है। खाता बंद होने से बचाने के लिए तुरंत अपना PAN और OTP साझा करें।",
 
     "आपके नाम से एक loan मंजूर हुआ है। पैसे प्राप्त करने के लिए पहले registration fee जमा करें।",
 
@@ -789,16 +763,15 @@ hindi_examples = [
     "आपके खाते में cashback pending है। उसे प्राप्त करने के लिए दिए गए लिंक पर क्लिक करें।",
 
     "आपको मुफ्त मोबाइल फोन मिला है। डिलीवरी के लिए ₹999 का शुल्क जमा करें।"
+
 ]
-# ------------------------------------------------------------
-# RANDOM HINGLISH MESSAGES
-# ------------------------------------------------------------
+
 
 hinglish_examples = [
 
     "Bhai tumne ₹50,000 ka lottery prize jeeta hai, claim karne ke liye OTP bhejo!",
 
-    "Your bank account KYC expire ho gaya hai, account block hone se bachane ke liye link pe click karo.",
+    "Your bank account KYC expire ho gaya hai, account block hone se bachne ke liye link pe click karo.",
 
     "Congratulations! Tumhare number par ₹10,000 cashback mila hai, abhi claim karo.",
 
@@ -806,7 +779,7 @@ hinglish_examples = [
 
     "Yaar tumne lucky draw mein iPhone jeeta hai, delivery ke liye ₹999 payment karo.",
 
-    "Tumhara electricity bill pending hai, connection cut hone se bachane ke liye abhi payment karo.",
+    "Tumhara electricity bill pending hai, connection cut hone se bachne ke liye abhi payment karo.",
 
     "Bhai tumhare naam pe ek parcel aaya hai, delivery complete karne ke liye ₹50 fee pay karo.",
 
@@ -835,13 +808,12 @@ hinglish_examples = [
     "Your UPI account suspend hone wala hai, reactivate karne ke liye UPI PIN enter karo.",
 
     "Yaar tumhare account mein cashback pending hai, receive karne ke liye verification complete karo."
+
 ]
+
+
 sample1, sample2, sample3 = st.columns(3)
 
-
-# ------------------------------------------------------------
-# SPAM BUTTON
-# ------------------------------------------------------------
 
 with sample1:
 
@@ -857,10 +829,6 @@ with sample1:
         st.rerun()
 
 
-# ------------------------------------------------------------
-# HINDI BUTTON
-# ------------------------------------------------------------
-
 with sample2:
 
     if st.button(
@@ -874,10 +842,6 @@ with sample2:
 
         st.rerun()
 
-
-# ------------------------------------------------------------
-# HINGLISH BUTTON
-# ------------------------------------------------------------
 
 with sample3:
 
@@ -898,13 +862,14 @@ with sample3:
 # ============================================================
 
 message = st.text_area(
-    "Enter your message",
+    "Message",
     value=st.session_state.sample_message,
     height=160,
     placeholder=(
-        "Example: Congratulations! You have won ₹10,00,000..."
+        "Example: Congratulations! You have won a prize. "
+        "Click the link to claim."
     ),
-    label_visibility="collapsed"
+    label_visibility="visible"
 )
 
 
@@ -913,9 +878,9 @@ message = st.text_area(
 # ============================================================
 
 analyze = st.button(
-    "🔎 Analyze Message",
-    type="primary",
-    use_container_width=True
+    "🔍 Analyze Message",
+    use_container_width=True,
+    type="primary"
 )
 
 
@@ -937,11 +902,27 @@ if analyze:
             message
         )
 
+
+        # ----------------------------------------------------
+        # SAVE TO HISTORY
+        # ----------------------------------------------------
+
+        st.session_state.history.append(
+            {
+                "message": message,
+                "result": result,
+                "language": language
+            }
+        )
+
+
         st.markdown("---")
+
 
         st.subheader(
             "📊 Prediction Result"
         )
+
 
         if result == "SPAM / FRAUD":
 
@@ -965,9 +946,12 @@ if analyze:
                 "message as legitimate (Ham)."
             )
 
+
         st.write("")
 
+
         result_col1, result_col2 = st.columns(2)
+
 
         with result_col1:
 
@@ -976,6 +960,7 @@ if analyze:
                 language
             )
 
+
         with result_col2:
 
             st.metric(
@@ -983,10 +968,74 @@ if analyze:
                 f"{confidence:.1f}%"
             )
 
+
         st.progress(
             min(confidence / 100, 1.0),
             text=f"Model confidence: {confidence:.1f}%"
         )
+
+
+# ============================================================
+# HISTORY BUTTON
+# ============================================================
+
+st.markdown("---")
+
+history_col1, history_col2 = st.columns(
+    [1, 3]
+)
+
+with history_col1:
+
+    show_history = st.button(
+        "History",
+        use_container_width=True
+    )
+
+
+if show_history:
+
+    st.subheader(
+        "Analysis History"
+    )
+
+    if not st.session_state.history:
+
+        st.info(
+            "No analysis history yet."
+        )
+
+    else:
+
+        for i, item in enumerate(
+            reversed(st.session_state.history),
+            1
+        ):
+
+            history_box = st.container(
+                border=True
+            )
+
+            with history_box:
+
+                st.markdown(
+                    f"### Analysis {i}"
+                )
+
+                st.write(
+                    "**Message:**",
+                    item["message"]
+                )
+
+                st.write(
+                    "**Result:**",
+                    item["result"]
+                )
+
+                st.write(
+                    "**Language:**",
+                    item["language"]
+                )
 
 
 # ============================================================
@@ -1020,7 +1069,8 @@ with col2:
 
     st.info(
         "🧹 **NLP Processing**\n\n"
-        "Text cleaning, normalization, stopword removal and stemming."
+        "Text cleaning, normalization, stopword removal "
+        "and stemming."
     )
 
 
@@ -1048,16 +1098,12 @@ st.markdown("---")
 
 tab1, tab2, tab3 = st.tabs(
     [
-        "📘 About Project",
-        "🧪 Example Messages",
-        "🔧 Technology"
+        "About the Project",
+        "How It Works",
+        "Supported Languages"
     ]
 )
 
-
-# ============================================================
-# ABOUT PROJECT
-# ============================================================
 
 with tab1:
 
@@ -1065,77 +1111,78 @@ with tab1:
         """
         ### Multilingual Phishing & Spam Detection
 
-        This application detects spam, phishing, fraudulent
-        and unwanted messages across:
+        This project uses Natural Language Processing and
+        Machine Learning to detect suspicious messages.
 
-        - 🇬🇧 English
-        - 🇮🇳 Hindi
-        - 💬 Hinglish
+        The system is designed for:
 
-        The system uses machine learning and NLP techniques
-        to process and classify messages.
+        - Spam detection
+        - Phishing detection
+        - Fraudulent message detection
+        - Multilingual text classification
+        - Code-mixed Hinglish messages
+
+        **Final Model:** Linear SVM
+
+        **Feature Engineering:** Word TF-IDF + Character TF-IDF
         """
     )
 
-
-# ============================================================
-# EXAMPLE MESSAGES
-# ============================================================
 
 with tab2:
 
     st.markdown(
-        "### 🧪 Example Messages"
-    )
-
-    st.info(
-        "Click any button above to load a random example "
-        "message for that category."
-    )
-
-    st.markdown(
         """
-        **🚨 Spam Example**
+        ### Detection Process
 
-        Random suspicious or fraudulent message.
+        **1. Text Input**
 
-        **🇮🇳 Hindi Example**
+        The user enters a message.
 
-        Random Hindi message.
+        **2. Language Detection**
 
-        **💬 Hinglish Example**
+        The system identifies English, Hindi or Hinglish.
 
-        Random Hindi-English mixed message.
+        **3. Text Preprocessing**
+
+        URLs, emails, phone numbers, currencies and
+        unnecessary characters are normalized.
+
+        **4. Feature Extraction**
+
+        Word-level and character-level TF-IDF features
+        are generated.
+
+        **5. Classification**
+
+        Linear SVM predicts whether the message is
+        legitimate or suspicious.
+
+        **6. Result**
+
+        The application displays the prediction,
+        detected language and confidence.
         """
     )
 
-
-# ============================================================
-# TECHNOLOGY
-# ============================================================
 
 with tab3:
 
     st.markdown(
         """
-        ### Technology Stack
+        ### Supported Languages
 
-        **Machine Learning**
+        **English**
 
-        Linear SVM
+        English-language messages.
 
-        **Feature Extraction**
+        **हिंदी**
 
-        Word TF-IDF + Character TF-IDF
+        Hindi-language messages written in Devanagari.
 
-        **Natural Language Processing**
+        **Hinglish**
 
-        Text normalization, stopword removal
-        and stemming.
-
-        **Deployment**
-
-        Streamlit Community Cloud
+        Hindi and English words used together.
         """
     )
 

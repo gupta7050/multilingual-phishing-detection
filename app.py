@@ -221,17 +221,48 @@ def predict_message(message):
 
     return language, result, confidence
 
-
 # ============================================================
 # CUSTOM CSS
 # ============================================================
 
-render_html("""
+st.markdown("""
 <style>
 
+/* =========================================================
+   MAIN CYBERSECURITY BACKGROUND
+   ========================================================= */
+
 .stApp {
-    background-color: #f5f7fb;
+    background:
+        radial-gradient(
+            circle at 8% 10%,
+            rgba(99, 102, 241, 0.20),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 92% 12%,
+            rgba(14, 165, 233, 0.22),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 80% 90%,
+            rgba(168, 85, 247, 0.16),
+            transparent 30%
+        ),
+        linear-gradient(
+            135deg,
+            #f8faff 0%,
+            #eef4ff 45%,
+            #f5f1ff 100%
+        );
+
+    min-height: 100vh;
 }
+
+
+/* =========================================================
+   REMOVE DEFAULT STREAMLIT ELEMENTS
+   ========================================================= */
 
 #MainMenu {
     visibility: hidden;
@@ -246,204 +277,288 @@ header {
 }
 
 
-/* SIDEBAR */
+/* =========================================================
+   MAIN CONTENT
+   ========================================================= */
 
-section[data-testid="stSidebar"] {
-    background-color: #0f172a;
-}
-
-section[data-testid="stSidebar"] * {
-    color: white;
-}
-
-
-/* HERO */
-
-.header-box {
-    background: linear-gradient(
-        135deg,
-        #0f172a,
-        #1e3a8a
-    );
-
-    padding: 38px;
-
-    border-radius: 22px;
-
-    margin-bottom: 28px;
-
-    color: white;
-
-    box-shadow:
-        0 12px 35px rgba(15, 23, 42, 0.18);
-}
-
-.header-title {
-    font-size: 36px;
-    font-weight: 800;
-    line-height: 1.2;
-}
-
-.header-text {
-    font-size: 16px;
-    color: #cbd5e1;
-    margin-top: 12px;
-    line-height: 1.6;
+.block-container {
+    padding-top: 2.5rem;
+    padding-bottom: 3rem;
 }
 
 
-/* SECTION TITLES */
+/* =========================================================
+   TITLE
+   ========================================================= */
 
 .main-title {
-    font-size: 32px;
-    font-weight: 800;
-    color: #0f172a;
+    color: #111827 !important;
+
+    font-size: 42px !important;
+
+    font-weight: 850 !important;
+
+    letter-spacing: -1.2px;
+
+    line-height: 1.15;
 }
+
 
 .subtitle {
-    font-size: 16px;
-    color: #64748b;
-    margin-bottom: 20px;
+    color: #475569 !important;
+
+    font-size: 16px !important;
+
+    line-height: 1.6;
+
+    margin-bottom: 25px;
 }
 
 
-/* RESULT CARDS */
+/* =========================================================
+   HORIZONTAL LINES
+   ========================================================= */
 
-.spam-result {
-    background-color: #fff1f2;
+hr {
+    border: none !important;
 
-    border: 2px solid #fb7185;
+    border-top: 1px solid rgba(148,163,184,0.28) !important;
 
-    border-radius: 18px;
-
-    padding: 25px;
-
-    margin-top: 20px;
-}
-
-.safe-result {
-    background-color: #ecfdf5;
-
-    border: 2px solid #34d399;
-
-    border-radius: 18px;
-
-    padding: 25px;
-
-    margin-top: 20px;
-}
-
-.spam-title {
-    color: #be123c;
-
-    font-size: 27px;
-
-    font-weight: 800;
-}
-
-.safe-title {
-    color: #047857;
-
-    font-size: 27px;
-
-    font-weight: 800;
-}
-
-.result-text {
-    color: #475569;
-
-    font-size: 15px;
-
-    margin-top: 8px;
-
-    line-height: 1.5;
+    margin: 25px 0 !important;
 }
 
 
-/* INFO CARDS */
-
-.info-card {
-    background: white;
-
-    padding: 22px;
-
-    border-radius: 16px;
-
-    border: 1px solid #e2e8f0;
-
-    box-shadow:
-        0 5px 20px rgba(15, 23, 42, 0.05);
-
-    min-height: 145px;
-}
-
-.info-icon {
-    font-size: 28px;
-}
-
-.info-title {
-    font-size: 17px;
-
-    font-weight: 700;
-
-    color: #0f172a;
-
-    margin-top: 8px;
-}
-
-.info-text {
-    font-size: 13px;
-
-    color: #64748b;
-
-    margin-top: 7px;
-
-    line-height: 1.5;
-}
-
-
-/* TEXT AREA */
+/* =========================================================
+   TEXT AREA
+   ========================================================= */
 
 textarea {
-    border-radius: 12px !important;
+    background: rgba(255,255,255,0.92) !important;
 
     border: 1px solid #cbd5e1 !important;
 
-    background-color: white !important;
+    border-radius: 15px !important;
+
+    color: #0f172a !important;
 
     font-size: 16px !important;
+
+    box-shadow:
+        0 8px 25px rgba(30,64,175,0.06) !important;
+}
+
+textarea:focus {
+    border: 2px solid #6366f1 !important;
+
+    box-shadow:
+        0 0 0 4px rgba(99,102,241,0.12) !important;
 }
 
 
-/* BUTTONS */
+/* =========================================================
+   BUTTONS
+   ========================================================= */
 
 .stButton > button {
-    border-radius: 10px;
 
-    font-weight: 700;
+    border: 1px solid rgba(148,163,184,0.35) !important;
 
-    min-height: 45px;
+    border-radius: 13px !important;
+
+    background: rgba(255,255,255,0.90) !important;
+
+    color: #1e293b !important;
+
+    font-weight: 700 !important;
+
+    min-height: 48px !important;
+
+    transition: all 0.2s ease !important;
+
+    box-shadow:
+        0 5px 18px rgba(30,64,175,0.06) !important;
+}
+
+.stButton > button:hover {
+
+    border-color: #6366f1 !important;
+
+    background: #eef2ff !important;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 10px 25px rgba(99,102,241,0.16) !important;
 }
 
 
-/* FOOTER */
+/* =========================================================
+   ANALYZE BUTTON
+   ========================================================= */
 
-.footer-text {
-    text-align: center;
+.stButton > button[kind="primary"] {
 
-    color: #64748b;
+    background:
+        linear-gradient(
+            90deg,
+            #0ea5e9,
+            #2563eb,
+            #7c3aed
+        ) !important;
 
-    font-size: 13px;
+    border: none !important;
 
-    padding: 30px;
+    color: white !important;
 
-    margin-top: 35px;
+    font-size: 17px !important;
 
-    border-top: 1px solid #e2e8f0;
+    min-height: 52px !important;
+
+    box-shadow:
+        0 10px 28px rgba(79,70,229,0.28) !important;
+}
+
+.stButton > button[kind="primary"]:hover {
+
+    background:
+        linear-gradient(
+            90deg,
+            #0284c7,
+            #1d4ed8,
+            #6d28d9
+        ) !important;
+
+    transform: translateY(-2px);
+}
+
+
+/* =========================================================
+   METRICS
+   ========================================================= */
+
+div[data-testid="stMetric"] {
+
+    background: rgba(255,255,255,0.80);
+
+    border: 1px solid rgba(148,163,184,0.25);
+
+    border-radius: 15px;
+
+    padding: 15px;
+
+    box-shadow:
+        0 8px 25px rgba(30,64,175,0.06);
+}
+
+
+/* =========================================================
+   INFO BOXES
+   ========================================================= */
+
+div[data-testid="stAlert"] {
+
+    border-radius: 14px !important;
+}
+
+
+/* =========================================================
+   TABS
+   ========================================================= */
+
+button[data-baseweb="tab"] {
+
+    font-weight: 700 !important;
+
+    color: #475569 !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+
+    color: #4f46e5 !important;
+}
+
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+section[data-testid="stSidebar"] {
+
+    background:
+        linear-gradient(
+            180deg,
+            #0b1120 0%,
+            #111c3a 55%,
+            #172554 100%
+        );
+}
+
+section[data-testid="stSidebar"] * {
+
+    color: #f8fafc;
+}
+
+
+/* =========================================================
+   SIDEBAR BUTTON
+   ========================================================= */
+
+section[data-testid="stSidebar"] .stButton > button {
+
+    background: rgba(255,255,255,0.08) !important;
+
+    border: 1px solid rgba(255,255,255,0.12) !important;
+
+    color: white !important;
+}
+
+
+/* =========================================================
+   EXPANDER
+   ========================================================= */
+
+div[data-testid="stExpander"] {
+
+    background: rgba(255,255,255,0.72);
+
+    border: 1px solid rgba(148,163,184,0.25);
+
+    border-radius: 15px;
+}
+
+
+/* =========================================================
+   CODE EXAMPLES
+   ========================================================= */
+
+div[data-testid="stCode"] {
+
+    border-radius: 12px !important;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    .main-title {
+        font-size: 30px !important;
+    }
+
+    .subtitle {
+        font-size: 14px !important;
+    }
+
+    .block-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
 }
 
 </style>
-""")
+""", unsafe_allow_html=True)
 
 
 # ============================================================
@@ -523,7 +638,7 @@ with st.sidebar:
 # ============================================================
 
 st.markdown(
-    "# 🛡️ Multilingual Phishing & Spam Detection"
+    "#  🕵️‍♂️  Multilingual Phishing & Spam Detection"
 )
 
 st.markdown(

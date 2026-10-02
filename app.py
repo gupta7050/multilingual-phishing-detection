@@ -734,34 +734,6 @@ st.markdown(
         rgba(0, 255, 136, 0.15) !important;
     }
 
-    /* ======================================================
-       STREAMLIT TOOLBAR
-       KEEP: Share + More (⋮)
-       HIDE: Star + Edit + GitHub
-       ====================================================== */
-
-    [data-testid="stToolbar"] button[aria-label*="Star"],
-    [data-testid="stToolbar"] button[title*="Star"],
-    [data-testid="stToolbar"] button[aria-label*="star"],
-    [data-testid="stToolbar"] button[title*="star"] {
-        display: none !important;
-    }
-
-    [data-testid="stToolbar"] button[aria-label*="Edit"],
-    [data-testid="stToolbar"] button[title*="Edit"],
-    [data-testid="stToolbar"] button[aria-label*="edit"],
-    [data-testid="stToolbar"] button[title*="edit"] {
-        display: none !important;
-    }
-
-    [data-testid="stToolbar"] a[href*="github"],
-    [data-testid="stToolbar"] a[aria-label*="GitHub"],
-    [data-testid="stToolbar"] a[title*="GitHub"],
-    [data-testid="stToolbar"] a[aria-label*="github"],
-    [data-testid="stToolbar"] a[title*="github"] {
-        display: none !important;
-    }
-
 </style>
     """,
     unsafe_allow_html=True

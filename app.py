@@ -14,37 +14,46 @@ from scipy.sparse import hstack as sp_hstack
 # ============================================================
 
 st.set_page_config(
-    page_title="ShieldAI | Multilingual Fraud Detection",
+    page_title="Multilingual Fraud Detection",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 
 # ============================================================
-# LOAD NLTK
+# NLTK
 # ============================================================
 
 nltk.download("stopwords", quiet=True)
 
 
 # ============================================================
-# LOAD MODEL FILES
+# LOAD MODEL
 # ============================================================
 
 BASE_DIR = Path(__file__).parent
 
-with open(BASE_DIR / "best_model.pkl", "rb") as f:
-    best_clf = pickle.load(f)
 
-with open(BASE_DIR / "tfidf_word.pkl", "rb") as f:
-    tfidf_word = pickle.load(f)
+@st.cache_resource
+def load_models():
 
-with open(BASE_DIR / "tfidf_char.pkl", "rb") as f:
-    tfidf_char = pickle.load(f)
+    with open(BASE_DIR / "best_model.pkl", "rb") as f:
+        model = pickle.load(f)
 
-with open(BASE_DIR / "label_encoder.pkl", "rb") as f:
-    encoder = pickle.load(f)
+    with open(BASE_DIR / "tfidf_word.pkl", "rb") as f:
+        word_vectorizer = pickle.load(f)
+
+    with open(BASE_DIR / "tfidf_char.pkl", "rb") as f:
+        char_vectorizer = pickle.load(f)
+
+    with open(BASE_DIR / "label_encoder.pkl", "rb") as f:
+        label_encoder = pickle.load(f)
+
+    return model, word_vectorizer, char_vectorizer, label_encoder
+
+
+best_clf, tfidf_word, tfidf_char, encoder = load_models()
 
 
 # ============================================================
@@ -60,9 +69,9 @@ hinglish_stops = {
     'ko', 'se', 'me', 'mein', 'pe', 'par', 'aur', 'ya', 'bhi',
     'yeh', 'ye', 'woh', 'wo', 'ek', 'koi', 'kuch', 'sab', 'apna',
     'apni', 'apne', 'uska', 'uski', 'uske', 'mera', 'meri', 'mere',
-    'tera', 'teri', 'tere', 'humara', 'tumhara', 'unka', 'kya', 'kyun',
-    'kaise', 'kab', 'kahan', 'kaun', 'nahi', 'nahin', 'mat', 'na',
-    'ji', 'bhai', 'yaar', 'dost', 'sir', 'madam'
+    'tera', 'teri', 'tere', 'humara', 'tumhara', 'unka', 'kya',
+    'kyun', 'kaise', 'kab', 'kahan', 'kaun', 'nahi', 'nahin',
+    'mat', 'na', 'ji', 'bhai', 'yaar', 'dost', 'sir', 'madam'
 }
 
 all_stops = english_stops | hinglish_stops
@@ -146,14 +155,21 @@ def predict_message(message):
     label = best_clf.predict(X)[0]
 
     if hasattr(best_clf, "predict_proba"):
-        probability = best_clf.predict_proba(X)[0]
-        confidence = float(max(probability) * 100)
+
+        probabilities = best_clf.predict_proba(X)[0]
+
+        confidence = float(max(probabilities) * 100)
+
     else:
+
         confidence = 0.0
 
     if label == 1:
+
         result = "SPAM / FRAUD"
+
     else:
+
         result = "LEGITIMATE"
 
     return language, result, confidence
@@ -165,634 +181,406 @@ def predict_message(message):
 
 st.markdown(
     """
-<style>
+    <style>
 
-/* ==========================================================
-   GLOBAL
-   ========================================================== */
+    /* Main background */
 
-.stApp {
-    background:
-        radial-gradient(
-            circle at 10% 0%,
-            rgba(37, 99, 235, 0.08),
-            transparent 30%
-        ),
-        radial-gradient(
-            circle at 90% 10%,
-            rgba(14, 165, 233, 0.08),
-            transparent 30%
-        ),
-        #f7f9fc;
-}
-
-#MainMenu {
-    visibility: hidden;
-}
-
-footer {
-    visibility: hidden;
-}
-
-header {
-    background: transparent !important;
-}
+    .stApp {
+        background-color: #f5f7fb;
+    }
 
 
-/* ==========================================================
-   TOP NAV
-   ========================================================== */
+    /* Hide Streamlit menu/footer */
 
-.topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 4px 22px 4px;
-}
+    #MainMenu {
+        visibility: hidden;
+    }
 
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.brand-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: linear-gradient(
-        135deg,
-        #2563eb,
-        #0ea5e9
-    );
-
-    color: white;
-    font-size: 22px;
-
-    box-shadow:
-        0 8px 20px rgba(37, 99, 235, 0.25);
-}
-
-.brand-name {
-    font-size: 19px;
-    font-weight: 800;
-    color: #0f172a;
-}
-
-.brand-sub {
-    font-size: 11px;
-    color: #64748b;
-    margin-top: 1px;
-}
-
-.status {
-    background: #ecfdf5;
-    border: 1px solid #bbf7d0;
-    color: #047857;
-
-    padding: 7px 13px;
-    border-radius: 999px;
-
-    font-size: 12px;
-    font-weight: 700;
-}
+    footer {
+        visibility: hidden;
+    }
 
 
-/* ==========================================================
-   HERO
-   ========================================================== */
+    /* Sidebar */
 
-.hero {
-    position: relative;
-    overflow: hidden;
+    section[data-testid="stSidebar"] {
+        background-color: #0f172a;
+    }
 
-    background:
-        linear-gradient(
+
+    section[data-testid="stSidebar"] * {
+        color: white;
+    }
+
+
+    /* Main title */
+
+    .main-title {
+        font-size: 42px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 5px;
+    }
+
+
+    .subtitle {
+        font-size: 17px;
+        color: #64748b;
+        margin-bottom: 25px;
+    }
+
+
+    /* Header card */
+
+    .header-box {
+        background: linear-gradient(
             135deg,
-            #0f172a 0%,
-            #172554 55%,
-            #1d4ed8 100%
+            #0f172a,
+            #1e3a8a
         );
 
-    border-radius: 24px;
+        padding: 35px;
 
-    padding: 42px 48px;
+        border-radius: 20px;
 
-    margin-bottom: 24px;
+        margin-bottom: 25px;
 
-    box-shadow:
-        0 20px 50px rgba(15, 23, 42, 0.18);
-}
+        color: white;
 
-.hero::after {
-    content: "";
+        box-shadow: 0 10px 30px rgba(15,23,42,0.15);
+    }
 
-    position: absolute;
 
-    width: 260px;
-    height: 260px;
+    .header-title {
+        font-size: 36px;
+        font-weight: 800;
+    }
 
-    right: -70px;
-    top: -100px;
 
-    border-radius: 50%;
+    .header-text {
+        font-size: 16px;
+        color: #cbd5e1;
+        margin-top: 10px;
+    }
 
-    background: rgba(56, 189, 248, 0.12);
-}
 
-.hero-badge {
-    display: inline-block;
+    /* Cards */
 
-    background: rgba(255,255,255,0.10);
+    .info-card {
+        background: white;
 
-    border: 1px solid rgba(255,255,255,0.16);
+        padding: 22px;
 
-    color: #bfdbfe;
+        border-radius: 16px;
 
-    padding: 7px 13px;
+        border: 1px solid #e2e8f0;
 
-    border-radius: 999px;
+        box-shadow: 0 5px 20px rgba(15,23,42,0.05);
 
-    font-size: 12px;
-    font-weight: 700;
+        min-height: 145px;
+    }
 
-    margin-bottom: 16px;
-}
 
-.hero-title {
-    color: white;
+    .info-icon {
+        font-size: 28px;
+    }
 
-    font-size: 38px;
 
-    font-weight: 850;
+    .info-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-top: 8px;
+    }
 
-    line-height: 1.15;
 
-    margin-bottom: 12px;
-}
+    .info-text {
+        font-size: 13px;
+        color: #64748b;
+        margin-top: 5px;
+    }
 
-.hero-description {
-    color: #cbd5e1;
 
-    font-size: 16px;
+    /* Result */
 
-    max-width: 720px;
+    .spam-result {
+        background-color: #fff1f2;
 
-    line-height: 1.65;
-}
+        border: 2px solid #fb7185;
 
+        border-radius: 18px;
 
-/* ==========================================================
-   SECTION TITLES
-   ========================================================== */
+        padding: 25px;
 
-.section-title {
-    color: #0f172a;
+        margin-top: 20px;
+    }
 
-    font-size: 21px;
 
-    font-weight: 800;
+    .safe-result {
+        background-color: #ecfdf5;
 
-    margin-bottom: 5px;
-}
+        border: 2px solid #34d399;
 
-.section-subtitle {
-    color: #64748b;
+        border-radius: 18px;
 
-    font-size: 13px;
+        padding: 25px;
 
-    margin-bottom: 16px;
-}
+        margin-top: 20px;
+    }
 
 
-/* ==========================================================
-   INPUT CARD
-   ========================================================== */
+    .spam-title {
+        color: #be123c;
 
-.input-card {
-    background: white;
+        font-size: 27px;
 
-    border: 1px solid #e2e8f0;
+        font-weight: 800;
+    }
 
-    border-radius: 20px;
 
-    padding: 24px;
+    .safe-title {
+        color: #047857;
 
-    box-shadow:
-        0 8px 30px rgba(15, 23, 42, 0.06);
+        font-size: 27px;
 
-    margin-bottom: 22px;
-}
+        font-weight: 800;
+    }
 
 
-/* ==========================================================
-   TEXT AREA
-   ========================================================== */
+    .result-text {
+        color: #475569;
 
-textarea {
-    border-radius: 14px !important;
+        font-size: 15px;
 
-    border: 1px solid #cbd5e1 !important;
+        margin-top: 8px;
+    }
 
-    background: #f8fafc !important;
 
-    color: #0f172a !important;
+    /* Buttons */
 
-    font-size: 15px !important;
-}
+    .stButton > button {
 
-textarea:focus {
-    border: 2px solid #2563eb !important;
+        border-radius: 10px;
 
-    box-shadow:
-        0 0 0 3px rgba(37, 99, 235, 0.10) !important;
-}
+        font-weight: 700;
 
+        min-height: 45px;
+    }
 
-/* ==========================================================
-   BUTTON
-   ========================================================== */
 
-.stButton > button {
+    /* Text area */
 
-    border: none !important;
+    textarea {
 
-    border-radius: 12px !important;
+        border-radius: 12px !important;
 
-    min-height: 48px !important;
+        border: 1px solid #cbd5e1 !important;
 
-    font-weight: 750 !important;
+        background-color: white !important;
 
-    font-size: 15px !important;
+        font-size: 16px !important;
+    }
 
-    background:
-        linear-gradient(
-            135deg,
-            #2563eb,
-            #1d4ed8
-        ) !important;
 
-    color: white !important;
+    /* Footer */
 
-    box-shadow:
-        0 8px 18px rgba(37, 99, 235, 0.22);
+    .footer-text {
 
-    transition: all 0.2s ease;
-}
+        text-align: center;
 
-.stButton > button:hover {
+        color: #64748b;
 
-    transform: translateY(-1px);
+        font-size: 13px;
 
-    box-shadow:
-        0 12px 25px rgba(37, 99, 235, 0.28);
-}
+        padding: 25px;
 
+        margin-top: 35px;
+    }
 
-/* ==========================================================
-   RESULT
-   ========================================================== */
-
-.result-card {
-
-    border-radius: 20px;
-
-    padding: 25px;
-
-    margin: 18px 0 22px 0;
-
-    border: 1px solid;
-}
-
-.result-spam {
-
-    background: linear-gradient(
-        135deg,
-        #fff1f2,
-        #fff7f8
-    );
-
-    border-color: #fecdd3;
-}
-
-.result-safe {
-
-    background: linear-gradient(
-        135deg,
-        #ecfdf5,
-        #f5fffa
-    );
-
-    border-color: #bbf7d0;
-}
-
-.result-icon {
-
-    width: 54px;
-    height: 54px;
-
-    border-radius: 15px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    font-size: 26px;
-
-    margin-bottom: 13px;
-}
-
-.icon-spam {
-
-    background: #ffe4e6;
-}
-
-.icon-safe {
-
-    background: #d1fae5;
-}
-
-.result-heading {
-
-    font-size: 25px;
-
-    font-weight: 850;
-
-    margin-bottom: 6px;
-}
-
-.result-spam .result-heading {
-    color: #be123c;
-}
-
-.result-safe .result-heading {
-    color: #047857;
-}
-
-.result-description {
-
-    color: #475569;
-
-    font-size: 14px;
-
-    margin-bottom: 20px;
-}
-
-.meta-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
-    gap: 12px;
-}
-
-.meta {
-
-    background: rgba(255,255,255,0.72);
-
-    border: 1px solid rgba(148,163,184,0.22);
-
-    border-radius: 12px;
-
-    padding: 12px 14px;
-}
-
-.meta-label {
-
-    color: #64748b;
-
-    font-size: 11px;
-
-    font-weight: 700;
-
-    text-transform: uppercase;
-
-    letter-spacing: 0.5px;
-}
-
-.meta-value {
-
-    color: #0f172a;
-
-    font-size: 16px;
-
-    font-weight: 800;
-
-    margin-top: 3px;
-}
-
-
-/* ==========================================================
-   INFO CARDS
-   ========================================================== */
-
-.info-card {
-
-    background: white;
-
-    border: 1px solid #e2e8f0;
-
-    border-radius: 17px;
-
-    padding: 20px;
-
-    height: 100%;
-
-    box-shadow:
-        0 6px 22px rgba(15,23,42,0.045);
-}
-
-.info-icon {
-
-    font-size: 26px;
-
-    margin-bottom: 10px;
-}
-
-.info-title {
-
-    color: #0f172a;
-
-    font-size: 15px;
-
-    font-weight: 800;
-
-    margin-bottom: 5px;
-}
-
-.info-text {
-
-    color: #64748b;
-
-    font-size: 13px;
-
-    line-height: 1.5;
-}
-
-
-/* ==========================================================
-   EXAMPLE BUTTONS
-   ========================================================== */
-
-.example-label {
-
-    color: #475569;
-
-    font-size: 12px;
-
-    font-weight: 700;
-
-    margin-bottom: 5px;
-}
-
-
-/* ==========================================================
-   FOOTER
-   ========================================================== */
-
-.footer {
-
-    text-align: center;
-
-    padding: 30px 10px 10px 10px;
-
-    margin-top: 35px;
-
-    border-top: 1px solid #e2e8f0;
-
-    color: #64748b;
-
-    font-size: 12px;
-}
-
-.footer strong {
-    color: #334155;
-}
-
-</style>
-""",
+    </style>
+    """,
     unsafe_allow_html=True
 )
 
 
 # ============================================================
-# TOP BAR
+# SIDEBAR
+# ============================================================
+
+with st.sidebar:
+
+    st.markdown(
+        """
+        # 🛡️ ShieldAI
+
+        ### Multilingual Fraud Detection
+
+        ---
+        """,
+    )
+
+    st.markdown("### 🌐 Supported Languages")
+
+    st.markdown(
+        """
+        🇬🇧 **English**
+
+        🇮🇳 **Hindi**
+
+        💬 **Hinglish**
+        """
+    )
+
+    st.divider()
+
+    st.markdown("### 🤖 Model")
+
+    st.markdown(
+        """
+        **Linear SVM**
+
+        Word TF-IDF + Character TF-IDF
+        """
+    )
+
+    st.divider()
+
+    st.markdown("### 📌 How to Use")
+
+    st.markdown(
+        """
+        **1.** Enter a message
+
+        **2.** Click Analyze
+
+        **3.** Check language
+
+        **4.** View prediction
+
+        **5.** Check confidence
+        """
+    )
+
+    st.divider()
+
+    st.caption(
+        "Final Year Academic Project"
+    )
+
+
+# ============================================================
+# HEADER
 # ============================================================
 
 st.markdown(
     """
-<div class="topbar">
+    <div class="header-box">
 
-    <div class="brand">
-
-        <div class="brand-icon">
-            🛡️
+        <div class="header-title">
+            🛡️ Multilingual Phishing & Spam Detection
         </div>
 
-        <div>
-
-            <div class="brand-name">
-                ShieldAI
-            </div>
-
-            <div class="brand-sub">
-                Multilingual Message Security
-            </div>
-
+        <div class="header-text">
+            Detect spam, phishing, fraudulent and unwanted messages
+            in English, Hindi and Hinglish using Machine Learning
+            and Natural Language Processing.
         </div>
 
     </div>
-
-    <div class="status">
-        ● MODEL ONLINE
-    </div>
-
-</div>
-""",
+    """,
     unsafe_allow_html=True
 )
 
 
 # ============================================================
-# HERO
+# MESSAGE ANALYZER
 # ============================================================
 
 st.markdown(
     """
-<div class="hero">
-
-    <div class="hero-badge">
-        🧠 MACHINE LEARNING • NLP • MULTILINGUAL
+    <div class="main-title">
+        🔍 Message Analyzer
     </div>
 
-    <div class="hero-title">
-        Detect suspicious messages<br>
-        before they become a threat.
+    <div class="subtitle">
+        Enter a message below and analyze it instantly.
     </div>
-
-    <div class="hero-description">
-        Analyze English, Hindi and Hinglish messages for spam,
-        phishing and fraudulent content using a trained
-        Linear SVM classification model.
-    </div>
-
-</div>
-""",
+    """,
     unsafe_allow_html=True
 )
 
 
 # ============================================================
-# ANALYZER
+# SAMPLE MESSAGE
 # ============================================================
 
-st.markdown(
-    """
-<div class="section-title">
-    🔍 Message Analyzer
-</div>
+if "sample_message" not in st.session_state:
+    st.session_state.sample_message = ""
 
-<div class="section-subtitle">
-    Paste a message below and let the model analyze it.
-</div>
-""",
-    unsafe_allow_html=True
-)
 
-st.markdown(
-    '<div class="input-card">',
-    unsafe_allow_html=True
-)
+sample_col1, sample_col2, sample_col3 = st.columns(3)
+
+
+with sample_col1:
+
+    if st.button(
+        "🚨 Spam Example",
+        use_container_width=True
+    ):
+
+        st.session_state.sample_message = (
+            "Congratulations! You have won a free lottery "
+            "ticket worth $1000. Claim now!"
+        )
+
+
+with sample_col2:
+
+    if st.button(
+        "🇮🇳 Hindi Example",
+        use_container_width=True
+    ):
+
+        st.session_state.sample_message = (
+            "कल मिलते हैं, ठीक है?"
+        )
+
+
+with sample_col3:
+
+    if st.button(
+        "💬 Hinglish Example",
+        use_container_width=True
+    ):
+
+        st.session_state.sample_message = (
+            "Yaar FREE iPhone jeetne ke liye "
+            "is link pe click kar jaldi!"
+        )
+
+
+# ============================================================
+# INPUT
+# ============================================================
 
 message = st.text_area(
-    "Message",
-    height=155,
+    "Enter message",
+    value=st.session_state.sample_message,
+    height=160,
     placeholder=(
-        "Example: Congratulations! You have won ₹10,00,000. "
-        "Click the link to claim your prize..."
+        "Example: Congratulations! You have won ₹10,00,000..."
     ),
     label_visibility="collapsed"
 )
 
-st.markdown(
-    "</div>",
-    unsafe_allow_html=True
-)
-
 
 # ============================================================
-# DETECT
+# ANALYZE BUTTON
 # ============================================================
 
-detect_clicked = st.button(
-    "🔎  Analyze Message",
+analyze = st.button(
+    "🔎 Analyze Message",
+    type="primary",
     use_container_width=True
 )
 
@@ -801,288 +589,291 @@ detect_clicked = st.button(
 # RESULT
 # ============================================================
 
-if detect_clicked:
+if analyze:
 
     if not message.strip():
 
-        st.warning("Please enter a message to analyze.")
+        st.warning(
+            "⚠️ Please enter a message before analyzing."
+        )
 
     else:
 
         language, result, confidence = predict_message(message)
 
+        st.markdown("---")
+
+        st.subheader("📊 Prediction Result")
+
         if result == "SPAM / FRAUD":
 
             st.markdown(
-                f"""
-<div class="result-card result-spam">
+                """
+                <div class="spam-result">
 
-    <div class="result-icon icon-spam">
-        🚨
-    </div>
+                    <div class="spam-title">
+                        🚨 SPAM / FRAUD DETECTED
+                    </div>
 
-    <div class="result-heading">
-        SPAM / FRAUD DETECTED
-    </div>
+                    <div class="result-text">
+                        The model detected patterns associated
+                        with suspicious or fraudulent messages.
+                    </div>
 
-    <div class="result-description">
-        This message contains patterns associated with
-        potentially unwanted, fraudulent or suspicious content.
-    </div>
-
-    <div class="meta-grid">
-
-        <div class="meta">
-
-            <div class="meta-label">
-                Detected Language
-            </div>
-
-            <div class="meta-value">
-                🌐 {language}
-            </div>
-
-        </div>
-
-        <div class="meta">
-
-            <div class="meta-label">
-                Model Confidence
-            </div>
-
-            <div class="meta-value">
-                {confidence:.1f}%
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-""",
+                </div>
+                """,
                 unsafe_allow_html=True
             )
 
         else:
 
             st.markdown(
-                f"""
-<div class="result-card result-safe">
+                """
+                <div class="safe-result">
 
-    <div class="result-icon icon-safe">
-        ✓
-    </div>
+                    <div class="safe-title">
+                        ✅ LEGITIMATE MESSAGE
+                    </div>
 
-    <div class="result-heading">
-        LEGITIMATE MESSAGE
-    </div>
+                    <div class="result-text">
+                        The model classified this message as
+                        legitimate (Ham).
+                    </div>
 
-    <div class="result-description">
-        The model classified this message as legitimate
-        (Ham) based on the learned message patterns.
-    </div>
-
-    <div class="meta-grid">
-
-        <div class="meta">
-
-            <div class="meta-label">
-                Detected Language
-            </div>
-
-            <div class="meta-value">
-                🌐 {language}
-            </div>
-
-        </div>
-
-        <div class="meta">
-
-            <div class="meta-label">
-                Model Confidence
-            </div>
-
-            <div class="meta-value">
-                {confidence:.1f}%
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-""",
+                </div>
+                """,
                 unsafe_allow_html=True
+            )
+
+        st.write("")
+
+        result_col1, result_col2 = st.columns(2)
+
+        with result_col1:
+
+            st.metric(
+                "🌐 Detected Language",
+                language
+            )
+
+        with result_col2:
+
+            st.metric(
+                "📊 Confidence",
+                f"{confidence:.1f}%"
             )
 
         st.progress(
             min(confidence / 100, 1.0),
-            text=f"Prediction confidence • {confidence:.1f}%"
+            text=f"Model confidence: {confidence:.1f}%"
         )
 
 
 # ============================================================
-# TECHNOLOGY CARDS
+# FEATURES
 # ============================================================
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("---")
 
-st.markdown(
-    """
-<div class="section-title">
-    ⚙️ Detection Pipeline
-</div>
+st.subheader("⚙️ Detection Pipeline")
 
-<div class="section-subtitle">
-    The system combines multilingual preprocessing with
-    machine-learning based text classification.
-</div>
-""",
-    unsafe_allow_html=True
-)
+feature1, feature2, feature3, feature4 = st.columns(4)
 
-c1, c2, c3, c4 = st.columns(4)
 
-cards = [
-    (
-        "🌐",
-        "3 Languages",
-        "English, Hindi and Hinglish message support."
-    ),
-    (
-        "🧹",
-        "NLP Preprocessing",
-        "Cleaning, normalization, stopword removal and stemming."
-    ),
-    (
-        "🔤",
-        "TF-IDF Features",
-        "Word-level and character-level text representations."
-    ),
-    (
-        "🧠",
-        "Linear SVM",
-        "Trained classification model for final prediction."
+with feature1:
+
+    st.markdown(
+        """
+        <div class="info-card">
+
+            <div class="info-icon">
+                🌐
+            </div>
+
+            <div class="info-title">
+                Multilingual
+            </div>
+
+            <div class="info-text">
+                English, Hindi and Hinglish
+                message detection.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
     )
-]
-
-for column, card in zip([c1, c2, c3, c4], cards):
-
-    with column:
-
-        st.markdown(
-            f"""
-<div class="info-card">
-
-    <div class="info-icon">
-        {card[0]}
-    </div>
-
-    <div class="info-title">
-        {card[1]}
-    </div>
-
-    <div class="info-text">
-        {card[2]}
-    </div>
-
-</div>
-""",
-            unsafe_allow_html=True
-        )
 
 
-# ============================================================
-# QUICK TESTS
-# ============================================================
+with feature2:
 
-st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="info-card">
 
-st.markdown(
-    """
-<div class="section-title">
-    💬 Quick Test
-</div>
+            <div class="info-icon">
+                🧹
+            </div>
 
-<div class="section-subtitle">
-    Try one of these messages by clicking the button.
-</div>
-""",
-    unsafe_allow_html=True
-)
+            <div class="info-title">
+                NLP Processing
+            </div>
 
-q1, q2, q3 = st.columns(3)
+            <div class="info-text">
+                Text cleaning, normalization,
+                stopword removal and stemming.
+            </div>
 
-with q1:
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    if st.button(
-        "🚨 Lottery message",
-        use_container_width=True
-    ):
 
-        st.session_state["sample"] = (
-            "Congratulations! You have won a free lottery "
-            "ticket worth $1000. Claim now!"
-        )
+with feature3:
 
-with q2:
+    st.markdown(
+        """
+        <div class="info-card">
 
-    if st.button(
-        "🇮🇳 Hindi message",
-        use_container_width=True
-    ):
+            <div class="info-icon">
+                🔤
+            </div>
 
-        st.session_state["sample"] = (
-            "कल मिलते हैं, ठीक है?"
-        )
+            <div class="info-title">
+                TF-IDF Features
+            </div>
 
-with q3:
+            <div class="info-text">
+                Word-level and character-level
+                text features.
+            </div>
 
-    if st.button(
-        "💬 Hinglish message",
-        use_container_width=True
-    ):
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-        st.session_state["sample"] = (
-            "Yaar FREE iPhone jeetne ke liye "
-            "is link pe click kar jaldi!"
-        )
+
+with feature4:
+
+    st.markdown(
+        """
+        <div class="info-card">
+
+            <div class="info-icon">
+                🧠
+            </div>
+
+            <div class="info-title">
+                Linear SVM
+            </div>
+
+            <div class="info-text">
+                Machine learning classification
+                for message detection.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # ============================================================
 # PROJECT INFORMATION
 # ============================================================
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("---")
 
-with st.expander("📘 About this project"):
+tab1, tab2, tab3 = st.tabs(
+    [
+        "📘 About Project",
+        "🧪 Example Messages",
+        "🔧 Technology"
+    ]
+)
+
+
+with tab1:
 
     st.markdown(
         """
-### Multilingual Phishing & Spam Detection
+        ### Multilingual Phishing & Spam Detection
 
-This system detects spam, phishing, fraudulent and unwanted
-messages across **English, Hindi and Hinglish**.
+        This application detects spam, phishing, fraudulent and
+        unwanted messages across:
 
-**Machine Learning Model**
+        - 🇬🇧 English
+        - 🇮🇳 Hindi
+        - 💬 Hinglish
 
-- Linear SVM
-- Word-level TF-IDF
-- Character-level TF-IDF
+        The system uses machine learning and NLP techniques to
+        process and classify messages.
+        """
+    )
 
-**Processing**
 
-- Text normalization
-- URL and email normalization
-- Phone number normalization
-- Stopword removal
-- Stemming
-- TF-IDF feature extraction
-- Machine learning classification
+with tab2:
 
-The application is designed as an academic demonstration
-of multilingual and code-mixed message classification.
-"""
+    st.markdown("### 🚨 Suspicious Examples")
+
+    st.code(
+        "Congratulations! You have won a free lottery ticket. Claim now!",
+        language=None
+    )
+
+    st.code(
+        "URGENT: Your SBI account is blocked. Share OTP to verify.",
+        language=None
+    )
+
+    st.code(
+        "Yaar FREE iPhone jeetne ke liye is link pe click kar jaldi!",
+        language=None
+    )
+
+    st.markdown("### ✅ Legitimate Examples")
+
+    st.code(
+        "Hey, are you free for dinner tonight?",
+        language=None
+    )
+
+    st.code(
+        "कल मिलते हैं, ठीक है?",
+        language=None
+    )
+
+    st.code(
+        "Bhai kal cricket dekhne chalte hain?",
+        language=None
+    )
+
+
+with tab3:
+
+    st.markdown(
+        """
+        ### Technology Stack
+
+        **Machine Learning**
+
+        Linear SVM
+
+        **Feature Extraction**
+
+        Word TF-IDF + Character TF-IDF
+
+        **Natural Language Processing**
+
+        Text normalization, tokenization, stopword removal
+        and stemming.
+
+        **Deployment**
+
+        Streamlit Community Cloud
+        """
     )
 
 
@@ -1092,20 +883,23 @@ of multilingual and code-mixed message classification.
 
 st.markdown(
     """
-<div class="footer">
+    <div class="footer-text">
 
-    <strong>🛡️ ShieldAI — Multilingual Message Security</strong>
+        🛡️ <b>Multilingual Phishing & Spam Detection</b>
 
-    <br><br>
+        <br>
 
-    Machine Learning • Natural Language Processing •
-    English • Hindi • Hinglish
+        Machine Learning • Natural Language Processing
 
-    <br><br>
+        <br>
 
-    Final Year Academic Project
+        English • Hindi • Hinglish
 
-</div>
-""",
+        <br><br>
+
+        Final Year Academic Project
+
+    </div>
+    """,
     unsafe_allow_html=True
 )

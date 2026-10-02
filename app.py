@@ -15,7 +15,7 @@ from nltk.corpus import stopwords
 
 st.set_page_config(
     page_title="Multilingual Phishing & Spam Detection",
-    page_icon="🛡️",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -734,6 +734,35 @@ st.markdown(
         rgba(0, 255, 136, 0.15) !important;
     }
 
+
+
+    /* ======================================================
+       STREAMLIT CLOUD TOP BAR
+       Keep ONLY Share and the three-dot menu.
+       Hide Star, Edit and GitHub.
+       ====================================================== */
+
+    /* GitHub */
+    #GithubIcon {
+        display: none !important;
+    }
+
+    /* Star / Favorite */
+    [data-testid="stToolbar"] button[aria-label*="Star"],
+    [data-testid="stToolbar"] button[title*="Star"],
+    [data-testid="stToolbar"] [aria-label*="star"],
+    [data-testid="stToolbar"] [title*="star"] {
+        display: none !important;
+    }
+
+    /* Edit / pencil */
+    [data-testid="stToolbar"] button[aria-label*="Edit"],
+    [data-testid="stToolbar"] button[title*="Edit"],
+    [data-testid="stToolbar"] [aria-label*="edit"],
+    [data-testid="stToolbar"] [title*="edit"] {
+        display: none !important;
+    }
+
 </style>
     """,
     unsafe_allow_html=True
@@ -747,7 +776,7 @@ st.markdown(
 with st.sidebar:
 
     st.markdown(
-        "## 🛡️ ShieldAI"
+        "##  ShieldAI"
     )
 
     st.caption(
@@ -871,7 +900,7 @@ with st.sidebar:
 # ============================================================
 
 st.markdown(
-    "# 🕵️‍♂️ Multilingual Phishing & Spam Detection"
+    "#  Multilingual Phishing & Spam Detection"
 )
 
 st.caption(
@@ -885,7 +914,7 @@ st.caption(
 # ============================================================
 
 st.subheader(
-    "🔍 Message Analyzer"
+    " Message Analyzer"
 )
 
 st.caption(
@@ -1018,7 +1047,7 @@ sample1, sample2, sample3 = st.columns(3)
 with sample1:
 
     if st.button(
-        "🚨 Spam Example",
+        " Spam Example",
         use_container_width=True
     ):
 
@@ -1032,7 +1061,7 @@ with sample1:
 with sample2:
 
     if st.button(
-        "🇮🇳 Hindi Example",
+        " Hindi Example",
         use_container_width=True
     ):
 
@@ -1046,7 +1075,7 @@ with sample2:
 with sample3:
 
     if st.button(
-        "💬 Hinglish Example",
+        " Hinglish Example",
         use_container_width=True
     ):
 
@@ -1077,7 +1106,7 @@ message = st.text_area(
 # ============================================================
 
 analyze = st.button(
-    "🔍 Analyze Message",
+    " Analyze Message",
     use_container_width=True,
     type="primary"
 )
@@ -1092,7 +1121,7 @@ if analyze:
     if not message.strip():
 
         st.warning(
-            "⚠️ Please enter a message before analyzing."
+            " Please enter a message before analyzing."
         )
 
     else:
@@ -1104,13 +1133,13 @@ if analyze:
         st.markdown("---")
 
         st.subheader(
-            "📊 Prediction Result"
+            " Prediction Result"
         )
 
         if result == "SPAM / FRAUD":
 
             st.error(
-                "🚨 SPAM / FRAUD DETECTED"
+                " SPAM / FRAUD DETECTED"
             )
 
             st.markdown(
@@ -1121,7 +1150,7 @@ if analyze:
         else:
 
             st.success(
-                "✅ LEGITIMATE MESSAGE"
+                " LEGITIMATE MESSAGE"
             )
 
             st.markdown(
@@ -1136,14 +1165,14 @@ if analyze:
         with result_col1:
 
             st.metric(
-                "🌐 Detected Language",
+                " Detected Language",
                 language
             )
 
         with result_col2:
 
             st.metric(
-                "📊 Confidence",
+                " Confidence",
                 f"{confidence:.1f}%"
             )
 
@@ -1163,7 +1192,7 @@ if analyze:
 st.markdown("---")
 
 st.subheader(
-    "⚙️ Detection Pipeline"
+    " Detection Pipeline"
 )
 
 st.caption(
@@ -1178,7 +1207,7 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
 
     st.info(
-        "🌐 **Multilingual**\n\n"
+        " **Multilingual**\n\n"
         "English, Hindi and Hinglish message detection."
     )
 
@@ -1186,7 +1215,7 @@ with col1:
 with col2:
 
     st.info(
-        "🧹 **NLP Processing**\n\n"
+        " **NLP Processing**\n\n"
         "Text cleaning, normalization, stopword removal "
         "and stemming."
     )
@@ -1195,7 +1224,7 @@ with col2:
 with col3:
 
     st.info(
-        "🔤 **TF-IDF Features**\n\n"
+        " **TF-IDF Features**\n\n"
         "Word-level and character-level text features."
     )
 
@@ -1203,7 +1232,7 @@ with col3:
 with col4:
 
     st.info(
-        "🧠 **Linear SVM**\n\n"
+        " **Linear SVM**\n\n"
         "Machine learning classification for message detection."
     )
 
@@ -1313,7 +1342,7 @@ with tab3:
 st.divider()
 
 st.caption(
-    "🛡️ Multilingual Phishing & Spam Detection"
+    " Multilingual Phishing & Spam Detection"
 )
 
 st.caption(

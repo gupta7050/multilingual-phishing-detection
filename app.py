@@ -4,6 +4,7 @@ import re
 import random
 import inspect
 from pathlib import Path
+import requests
 
 import numpy as np
 from scipy.sparse import hstack
@@ -22,6 +23,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+
+# ============================================================
+# BACKEND API CONFIGURATION
+# ============================================================
+
+try:
+    API_URL = st.secrets["API_URL"]
+except Exception:
+    API_URL = "http://127.0.0.1:8000"
+
+API_URL = API_URL.rstrip("/")
 
 
 # ============================================================
@@ -88,6 +101,18 @@ HINGLISH_MARKERS = (hinglish_stops - english_stops) | {
 
 if "message" not in st.session_state:
     st.session_state.message = ""
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
+
+if "user_name" not in st.session_state:
+    st.session_state.user_name = ""
+
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
 
 
 # ============================================================
@@ -278,80 +303,143 @@ def label_to_result(label_text):
 
 
 # ============================================================
-# PREDICTION
+# BACKEND API FUNCTIONS
 # ============================================================
 
+def login_user(email, password):
+
+    try:
+        response = requests.post(
+            f"{API_URL}/login",
+            json={
+                "email": email,
+                "password": password
+            },
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return True, response.json()
+
+        try:
+            return False, response.json().get(
+                "detail",
+                "Invalid email or password."
+            )
+        except Exception:
+            return False, "Invalid email or password."
+
+    except requests.exceptions.RequestException as e:
+        return False, f"Backend connection error: {e}"
+
+
+def register_user(name, email, password):
+
+    try:
+        response = requests.post(
+            f"{API_URL}/register",
+            json={
+                "name": name,
+                "email": email,
+                "password": password
+            },
+            timeout=30
+        )
+
+        if response.status_code in (200, 201):
+            return True, response.json()
+
+        try:
+            return False, response.json().get(
+                "detail",
+                "Registration failed."
+            )
+        except Exception:
+            return False, "Registration failed."
+
+    except requests.exceptions.RequestException as e:
+        return False, f"Backend connection error: {e}"
+
+
+def get_history(user_id):
+
+    try:
+        response = requests.get(
+            f"{API_URL}/history/{user_id}",
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return response.json()
+
+        return []
+
+    except requests.exceptions.RequestException:
+        return []
+
+
+def predict_from_backend(message, user_id):
+
+    try:
+        response = requests.post(
+            f"{API_URL}/predict",
+            json={
+                "message": message,
+                "user_id": user_id
+            },
+            timeout=60
+        )
+
+        if response.status_code != 200:
+            try:
+                detail = response.json().get(
+                    "detail",
+                    "Prediction failed."
+                )
+            except Exception:
+                detail = "Prediction failed."
+
+            st.error(f"❌ {detail}")
+            return None, 0.0, "Unknown"
+
+        data = response.json()
+
+        return (
+            data.get("prediction"),
+            float(data.get("confidence", 0)),
+            data.get("language", "Unknown")
+        )
+
+    except requests.exceptions.RequestException as e:
+        st.error(
+            "❌ Could not connect to the FastAPI backend. "
+            f"Please make sure the backend is running.\n\n{e}"
+        )
+        return None, 0.0, "Unknown"
+
+
+# ============================================================
+# PREDICTION
+# ============================================================
 def predict_message(message):
 
     language = detect_language(message)
 
-    processed = preprocess_multilingual(
-        message
-    )
-
-    if not processed:
+    if not message.strip():
         return language, None, 0.0
 
-    X_w = tfidf_word.transform(
-        [processed]
+    if not st.session_state.logged_in:
+        return language, None, 0.0
+
+    result, confidence, backend_language = predict_from_backend(
+        message,
+        st.session_state.user_id
     )
 
-    X_c = tfidf_char.transform(
-        [processed]
-    )
+    if backend_language and backend_language != "Unknown":
+        language = backend_language
 
-    X = hstack(
-        [X_w, X_c],
-        format="csr"
-    )
-
-    predicted_label = best_clf.predict(X)[0]
-
-    try:
-
-        decoded_label = encoder.inverse_transform(
-            [predicted_label]
-        )[0]
-
-        result = label_to_result(decoded_label)
-
-    except Exception:
-
-        result = label_to_result(predicted_label)
-
-    # --------------------------------------------------------
-    # Confidence
-    # --------------------------------------------------------
-
-    if hasattr(best_clf, "predict_proba"):
-
-        probability = best_clf.predict_proba(X)[0]
-
-        confidence = float(np.max(probability)) * 100
-
-    elif hasattr(best_clf, "decision_function"):
-
-        # LinearSVC has no probabilities: convert the margin to a
-        # 50-100% score (uncalibrated)
-        scores = np.ravel(best_clf.decision_function(X))
-
-        if scores.size == 1:
-            margin = abs(float(scores[0]))
-        else:
-            top_two = np.sort(scores)[-2:]
-            margin = float(top_two[1] - top_two[0])
-
-        confidence = 100 / (1 + np.exp(-margin))
-
-    else:
-
-        confidence = 0.0
-
-    return (
-        language,
-        result,
-        confidence
-    )
+    return language, result, confidence
 
 
 # ============================================================
@@ -989,17 +1077,166 @@ with st.sidebar:
 
 
 # ============================================================
-# HEADER
+# HEADER + LOGIN
 # ============================================================
 
-st.markdown(
-    "# 🛡️ Multilingual Phishing & Spam Detection"
-)
+header_col, login_col = st.columns([8.2, 1.8], vertical_alignment="top")
 
-st.caption(
-    "AI-powered detection of suspicious messages "
-    "across English, Hindi and Hinglish."
-)
+with header_col:
+
+    st.markdown(
+        "# 🛡️ Multilingual Phishing & Spam Detection"
+    )
+
+    st.caption(
+        "AI-powered detection of suspicious messages "
+        "across English, Hindi and Hinglish."
+    )
+
+with login_col:
+
+    if not st.session_state.logged_in:
+
+        with st.popover("🔐 Login", use_container_width=True):
+
+            login_tab, register_tab = st.tabs(
+                ["Login", "Create Account"]
+            )
+
+            with login_tab:
+
+                st.markdown("### 🔐 Login")
+
+                login_email = st.text_input(
+                    "Email",
+                    key="login_email"
+                )
+
+                login_password = st.text_input(
+                    "Password",
+                    type="password",
+                    key="login_password"
+                )
+
+                if st.button(
+                    "Login",
+                    type="primary",
+                    key="login_submit",
+                    use_container_width=True
+                ):
+
+                    if not login_email or not login_password:
+
+                        st.warning(
+                            "Please enter email and password."
+                        )
+
+                    else:
+
+                        success, data = login_user(
+                            login_email,
+                            login_password
+                        )
+
+                        if success:
+
+                            st.session_state.logged_in = True
+                            st.session_state.user_id = data["user_id"]
+                            st.session_state.user_name = data["name"]
+                            st.session_state.user_email = data["email"]
+
+                            st.rerun()
+
+                        else:
+
+                            st.error(str(data))
+
+            with register_tab:
+
+                st.markdown("### 📝 Create Account")
+
+                register_name = st.text_input(
+                    "Full Name",
+                    key="register_name"
+                )
+
+                register_email = st.text_input(
+                    "Email",
+                    key="register_email"
+                )
+
+                register_password = st.text_input(
+                    "Password",
+                    type="password",
+                    key="register_password"
+                )
+
+                register_confirm = st.text_input(
+                    "Confirm Password",
+                    type="password",
+                    key="register_confirm"
+                )
+
+                if st.button(
+                    "Create Account",
+                    type="primary",
+                    key="register_submit",
+                    use_container_width=True
+                ):
+
+                    if not register_name or not register_email or not register_password:
+
+                        st.warning(
+                            "Please fill all fields."
+                        )
+
+                    elif register_password != register_confirm:
+
+                        st.error(
+                            "Passwords do not match."
+                        )
+
+                    else:
+
+                        success, data = register_user(
+                            register_name,
+                            register_email,
+                            register_password
+                        )
+
+                        if success:
+
+                            st.success(
+                                "Account created successfully. "
+                                "You can now login."
+                            )
+
+                        else:
+
+                            st.error(str(data))
+
+    else:
+
+        with st.popover(
+            f"👤 {st.session_state.user_name}",
+            use_container_width=True
+        ):
+
+            st.markdown("### 👤 Account")
+            st.caption(st.session_state.user_email)
+
+            if st.button(
+                "🚪 Logout",
+                key="logout_button",
+                use_container_width=True
+            ):
+
+                st.session_state.logged_in = False
+                st.session_state.user_id = None
+                st.session_state.user_name = ""
+                st.session_state.user_email = ""
+
+                st.rerun()
 
 
 # ============================================================
@@ -1240,7 +1477,13 @@ analyze = st.button(
 
 if analyze:
 
-    if not message.strip():
+    if not st.session_state.logged_in:
+
+        st.warning(
+            "🔐 Please login before analyzing a message."
+        )
+
+    elif not message.strip():
 
         st.warning(
             "⚠️ Please enter a message before analyzing."
@@ -1466,6 +1709,85 @@ with tab3:
         Hindi and English words used together.
         """
     )
+
+
+# ============================================================
+# PREDICTION HISTORY
+# ============================================================
+
+st.markdown("---")
+
+st.subheader("📜 Prediction History")
+
+if not st.session_state.logged_in:
+
+    st.info(
+        "🔐 Login to view your prediction history."
+    )
+
+else:
+
+    history = get_history(
+        st.session_state.user_id
+    )
+
+    if not history:
+
+        st.info(
+            "No prediction history available yet."
+        )
+
+    else:
+
+        for item in history:
+
+            prediction = item.get(
+                "prediction",
+                "Unknown"
+            )
+
+            confidence = float(
+                item.get("confidence", 0) or 0
+            )
+
+            message_text = item.get(
+                "message",
+                ""
+            )
+
+            language = item.get(
+                "language",
+                "Unknown"
+            )
+
+            created_at = item.get(
+                "created_at",
+                ""
+            )
+
+            if prediction == "SPAM / FRAUD":
+
+                st.error(
+                    f"🚨 **{prediction}**  |  "
+                    f"Confidence: {confidence:.1f}%"
+                )
+
+            else:
+
+                st.success(
+                    f"✅ **{prediction}**  |  "
+                    f"Confidence: {confidence:.1f}%"
+                )
+
+            st.write(
+                f"**Message:** {message_text}"
+            )
+
+            st.caption(
+                f"🌐 Language: {language}  •  🕒 {created_at}"
+            )
+
+            st.divider()
 
 
 # ============================================================

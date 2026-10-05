@@ -378,6 +378,32 @@ def get_history(user_id):
         return []
 
 
+def clear_history(user_id):
+
+    try:
+        response = requests.delete(
+            f"{API_URL}/history/{user_id}",
+            timeout=30
+        )
+
+        if response.status_code == 200:
+            return True, response.json().get(
+                "message",
+                "History cleared successfully."
+            )
+
+        try:
+            return False, response.json().get(
+                "detail",
+                "Could not clear history."
+            )
+        except Exception:
+            return False, "Could not clear history."
+
+    except requests.exceptions.RequestException as e:
+        return False, f"Backend connection error: {e}"
+
+
 def predict_from_backend(message, user_id):
 
     try:
@@ -898,11 +924,10 @@ st.markdown(
 
     /* ======================================================
        STREAMLIT CLOUD TOP BAR
-       Keep ONLY Share and the three-dot menu.
-       Hide Star, Edit (pen) and GitHub icons.
+       Remove only Star, Edit (pen) and GitHub icons.
        ====================================================== */
 
-    /* GitHub icon */
+    /* GitHub */
     #GithubIcon,
     header a[href*="github.com"],
     [data-testid="stToolbar"] a[href*="github.com"],
@@ -912,15 +937,13 @@ st.markdown(
         visibility: hidden !important;
     }
 
-    /* Star / Favorite icon */
+    /* Star / Favorite */
     header [aria-label*="star" i],
     header [title*="star" i],
     header [data-testid*="star" i],
     header [data-testid*="favorite" i],
     [data-testid="stToolbar"] [aria-label*="star" i],
     [data-testid="stToolbar"] [title*="star" i],
-    [data-testid="stToolbar"] [data-testid*="star" i],
-    [data-testid="stToolbar"] [data-testid*="favorite" i],
     [data-testid="stToolbarActions"] [aria-label*="star" i],
     [data-testid="stToolbarActions"] [title*="star" i],
     .stAppToolbar [aria-label*="star" i],
@@ -929,13 +952,12 @@ st.markdown(
         visibility: hidden !important;
     }
 
-    /* Edit / pen icon */
+    /* Edit / pen */
     header [aria-label*="edit" i],
     header [title*="edit" i],
     header [data-testid*="edit" i],
     [data-testid="stToolbar"] [aria-label*="edit" i],
     [data-testid="stToolbar"] [title*="edit" i],
-    [data-testid="stToolbar"] [data-testid*="edit" i],
     [data-testid="stToolbarActions"] [aria-label*="edit" i],
     [data-testid="stToolbarActions"] [title*="edit" i],
     .stAppToolbar [aria-label*="edit" i],
@@ -1726,6 +1748,21 @@ if not st.session_state.logged_in:
     )
 
 else:
+
+    if st.button(
+        "🗑️ Clear History",
+        key="clear_history_button",
+        **STRETCH
+    ):
+        success, message = clear_history(
+            st.session_state.user_id
+        )
+
+        if success:
+            st.success(message)
+            st.rerun()
+        else:
+            st.error(message)
 
     history = get_history(
         st.session_state.user_id

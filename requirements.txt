@@ -1,4 +1,9 @@
 streamlit
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+requests
 scikit-learn
 pandas
 numpy

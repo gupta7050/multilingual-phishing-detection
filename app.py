@@ -2,11 +2,7 @@ import streamlit as st
 import pickle
 import re
 import random
-import inspect
 from pathlib import Path
-import requests
-
-import numpy as np
 from scipy.sparse import hstack
 import nltk
 from nltk.stem import PorterStemmer
@@ -19,42 +15,10 @@ from nltk.corpus import stopwords
 
 st.set_page_config(
     page_title="Multilingual Phishing & Spam Detection",
-    page_icon="🛡️",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-
-# ============================================================
-# BACKEND API CONFIGURATION
-# ============================================================
-
-try:
-    API_URL = st.secrets["API_URL"]
-except Exception:
-    API_URL = "http://127.0.0.1:8000"
-
-API_URL = API_URL.rstrip("/")
-
-
-# ============================================================
-# COMPATIBILITY: button width (old and new Streamlit versions)
-# ============================================================
-
-if "width" in inspect.signature(st.button).parameters:
-    STRETCH = {"width": "stretch"}
-else:
-    STRETCH = {"use_container_width": True}
-
-
-# ============================================================
-# SETTINGS
-# ============================================================
-
-# IMPORTANT: this must match how your TRAINING notebook preprocessed text.
-# Keep False if your saved .pkl files were trained with the original
-# preprocessing. Set True only after retraining with the fixed version.
-USE_FIXED_PREPROCESSING = False
 
 
 # ============================================================
@@ -87,62 +51,46 @@ hinglish_stops = {
 
 all_stops = english_stops | hinglish_stops
 
-# Romanized Hindi words used to detect Hinglish written in Latin script
-HINGLISH_MARKERS = (hinglish_stops - english_stops) | {
-    "karo", "kare", "bhejo", "jeeta", "jeete", "abhi", "tumhara",
-    "tumhare", "wala", "rahe", "mila", "batao", "kijiye", "tumne",
-    "tumhe", "naam", "liye", "jaldi", "sirf", "aaj", "pehle"
-}
-
 
 # ============================================================
 # SESSION STATE
 # ============================================================
 
-if "message" not in st.session_state:
-    st.session_state.message = ""
-
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if "user_id" not in st.session_state:
-    st.session_state.user_id = None
-
-if "user_name" not in st.session_state:
-    st.session_state.user_name = ""
-
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
+if "sample_message" not in st.session_state:
+    st.session_state.sample_message = ""
 
 
 # ============================================================
-# LOAD MODELS (cached, loaded only once)
+# LOAD MODELS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
-
-@st.cache_resource
-def load_models():
-
-    with open(BASE_DIR / "tfidf_word.pkl", "rb") as f:
-        tfidf_word = pickle.load(f)
-
-    with open(BASE_DIR / "tfidf_char.pkl", "rb") as f:
-        tfidf_char = pickle.load(f)
-
-    with open(BASE_DIR / "best_model.pkl", "rb") as f:
-        best_clf = pickle.load(f)
-
-    with open(BASE_DIR / "label_encoder.pkl", "rb") as f:
-        encoder = pickle.load(f)
-
-    return tfidf_word, tfidf_char, best_clf, encoder
-
-
 try:
 
-    tfidf_word, tfidf_char, best_clf, encoder = load_models()
+    with open(
+        BASE_DIR / "tfidf_word.pkl",
+        "rb"
+    ) as f:
+        tfidf_word = pickle.load(f)
+
+    with open(
+        BASE_DIR / "tfidf_char.pkl",
+        "rb"
+    ) as f:
+        tfidf_char = pickle.load(f)
+
+    with open(
+        BASE_DIR / "best_model.pkl",
+        "rb"
+    ) as f:
+        best_clf = pickle.load(f)
+
+    with open(
+        BASE_DIR / "label_encoder.pkl",
+        "rb"
+    ) as f:
+        encoder = pickle.load(f)
 
 except Exception as e:
 
@@ -179,33 +127,17 @@ def preprocess_multilingual(text):
         text
     )
 
-    if USE_FIXED_PREPROCESSING:
-        # Word boundaries so "hours", "users", "first" are not corrupted
-        text = re.sub(
-            r"₹|\brs\b\.?|\binr\b",
-            " rupees ",
-            text
-        )
-    else:
-        text = re.sub(
-            r"₹|rs\.?|inr",
-            " rupees ",
-            text
-        )
+    text = re.sub(
+        r"₹|rs\.?|inr",
+        " rupees ",
+        text
+    )
 
     text = re.sub(
         r"£|\$|€",
         " currency ",
         text
     )
-
-    if USE_FIXED_PREPROCESSING:
-        # Remove the Devanagari danda / double danda
-        text = re.sub(
-            r"[\u0964\u0965]",
-            " ",
-            text
-        )
 
     text = re.sub(
         r"[^\w\s\u0900-\u097F]",
@@ -247,199 +179,107 @@ def detect_language(text):
 
     text = str(text)
 
-    hindi = len(re.findall(r"[\u0900-\u097F]", text))
-    latin = len(re.findall(r"[A-Za-z]", text))
+    hindi_chars = len(
+        re.findall(
+            r"[\u0900-\u097F]",
+            text
+        )
+    )
 
-    tokens = re.findall(r"[a-z]+", text.lower())
-    marker_hits = sum(t in HINGLISH_MARKERS for t in tokens)
+    english_chars = len(
+        re.findall(
+            r"[A-Za-z]",
+            text
+        )
+    )
 
-    # Devanagari mixed with a lot of Latin text
-    if hindi and latin and hindi / (hindi + latin) < 0.8:
+    if hindi_chars > 0 and english_chars > 0:
         return "Hinglish"
 
-    # Mostly Devanagari (a few words like KYC / OTP are still Hindi)
-    if hindi:
+    elif hindi_chars > 0:
         return "Hindi"
 
-    # Romanized Hindi mixed with English
-    if latin and marker_hits >= 2:
-        return "Hinglish"
-
-    if latin:
+    elif english_chars > 0:
         return "English"
 
     return "Unknown"
 
 
 # ============================================================
-# LABEL HELPERS
-# ============================================================
-
-SPAM_LABELS = {"spam", "phishing", "fraud", "scam", "smishing", "1"}
-HAM_LABELS = {
-    "ham", "legitimate", "legit", "safe", "normal",
-    "not_spam", "not spam", "non-spam", "non_spam", "nonspam", "0"
-}
-
-
-def label_to_result(label_text):
-
-    label_text = str(label_text).strip().lower()
-
-    if label_text in HAM_LABELS:
-        return "LEGITIMATE"
-
-    if label_text in SPAM_LABELS:
-        return "SPAM / FRAUD"
-
-    # Unknown label name: negated forms are legitimate
-    if label_text.startswith(("not", "non", "no_", "no ")):
-        return "LEGITIMATE"
-
-    if any(k in label_text for k in ("spam", "fraud", "phish", "scam")):
-        return "SPAM / FRAUD"
-
-    return "LEGITIMATE"
-
-
-# ============================================================
-# BACKEND API FUNCTIONS
-# ============================================================
-
-def login_user(email, password):
-
-    try:
-        response = requests.post(
-            f"{API_URL}/login",
-            json={
-                "email": email,
-                "password": password
-            },
-            timeout=30
-        )
-
-        if response.status_code == 200:
-            return True, response.json()
-
-        try:
-            return False, response.json().get(
-                "detail",
-                "Invalid email or password."
-            )
-        except Exception:
-            return False, "Invalid email or password."
-
-    except requests.exceptions.RequestException as e:
-        return False, f"Backend connection error: {e}"
-
-
-def register_user(name, email, password):
-
-    try:
-        response = requests.post(
-            f"{API_URL}/register",
-            json={
-                "name": name,
-                "email": email,
-                "password": password
-            },
-            timeout=30
-        )
-
-        if response.status_code in (200, 201):
-            return True, response.json()
-
-        try:
-            return False, response.json().get(
-                "detail",
-                "Registration failed."
-            )
-        except Exception:
-            return False, "Registration failed."
-
-    except requests.exceptions.RequestException as e:
-        return False, f"Backend connection error: {e}"
-
-
-def get_history(user_id):
-
-    try:
-        response = requests.get(
-            f"{API_URL}/history/{user_id}",
-            timeout=30
-        )
-
-        if response.status_code == 200:
-            return response.json()
-
-        return []
-
-    except requests.exceptions.RequestException:
-        return []
-
-
-def predict_from_backend(message, user_id):
-
-    try:
-        response = requests.post(
-            f"{API_URL}/predict",
-            json={
-                "message": message,
-                "user_id": user_id
-            },
-            timeout=60
-        )
-
-        if response.status_code != 200:
-            try:
-                detail = response.json().get(
-                    "detail",
-                    "Prediction failed."
-                )
-            except Exception:
-                detail = "Prediction failed."
-
-            st.error(f"❌ {detail}")
-            return None, 0.0, "Unknown"
-
-        data = response.json()
-
-        return (
-            data.get("prediction"),
-            float(data.get("confidence", 0)),
-            data.get("language", "Unknown")
-        )
-
-    except requests.exceptions.RequestException as e:
-        st.error(
-            "❌ Could not connect to the FastAPI backend. "
-            f"Please make sure the backend is running.\n\n{e}"
-        )
-        return None, 0.0, "Unknown"
-
-
-# ============================================================
 # PREDICTION
 # ============================================================
+
 def predict_message(message):
 
     language = detect_language(message)
 
-    if not message.strip():
-        return language, None, 0.0
-
-    if not st.session_state.logged_in:
-        return language, None, 0.0
-
-    result, confidence, backend_language = predict_from_backend(
-        message,
-        st.session_state.user_id
+    processed = preprocess_multilingual(
+        message
     )
 
-    if backend_language and backend_language != "Unknown":
-        language = backend_language
+    X_w = tfidf_word.transform(
+        [processed]
+    )
 
-    return language, result, confidence
+    X_c = tfidf_char.transform(
+        [processed]
+    )
+
+    X = hstack(
+        [X_w, X_c]
+    )
+
+    predicted_label = best_clf.predict(X)[0]
+
+    try:
+
+        decoded_label = encoder.inverse_transform(
+            [predicted_label]
+        )[0]
+
+        label_text = str(
+            decoded_label
+        ).lower()
+
+        if (
+            "spam" in label_text
+            or "fraud" in label_text
+            or "phishing" in label_text
+        ):
+
+            result = "SPAM / FRAUD"
+
+        else:
+
+            result = "LEGITIMATE"
+
+    except Exception:
+
+        if predicted_label == 1:
+            result = "SPAM / FRAUD"
+        else:
+            result = "LEGITIMATE"
+
+    if hasattr(
+        best_clf,
+        "predict_proba"
+    ):
+
+        probability = best_clf.predict_proba(X)[0]
+
+        confidence = (
+            max(probability) * 100
+        )
+
+    else:
+
+        confidence = 0.0
+
+    return (
+        language,
+        result,
+        confidence
+    )
 
 
 # ============================================================
@@ -521,8 +361,7 @@ st.markdown(
        MAIN CONTENT
        ====================================================== */
 
-    .main .block-container,
-    [data-testid="stMainBlockContainer"] {
+    .main .block-container {
 
         position:
         relative;
@@ -896,55 +735,44 @@ st.markdown(
     }
 
 
+
     /* ======================================================
        STREAMLIT CLOUD TOP BAR
        Keep ONLY Share and the three-dot menu.
-       Hide Star, Edit (pen) and GitHub icons.
+       Hide Star, Edit and GitHub.
        ====================================================== */
 
-    /* GitHub icon */
+    /* Hide Star / Favorite */
+    [data-testid="stToolbar"] button[aria-label*="Star"],
+    [data-testid="stToolbar"] button[title*="Star"],
+    [data-testid="stToolbar"] [aria-label*="star"],
+    [data-testid="stToolbar"] [title*="star"],
+    [data-testid="stToolbar"] a[aria-label*="Star"],
+    [data-testid="stToolbar"] a[title*="Star"] {
+        display: none !important;
+    }
+
+    /* Hide Edit / pencil */
+    [data-testid="stToolbar"] button[aria-label*="Edit"],
+    [data-testid="stToolbar"] button[title*="Edit"],
+    [data-testid="stToolbar"] [aria-label*="edit"],
+    [data-testid="stToolbar"] [title*="edit"],
+    [data-testid="stToolbar"] a[aria-label*="Edit"],
+    [data-testid="stToolbar"] a[title*="Edit"] {
+        display: none !important;
+    }
+
+    /* Hide GitHub */
     #GithubIcon,
-    header a[href*="github.com"],
-    [data-testid="stToolbar"] a[href*="github.com"],
-    [data-testid="stToolbarActions"] a[href*="github.com"],
-    .stAppToolbar a[href*="github.com"] {
+    [data-testid="stToolbar"] a[href*="github"],
+    [data-testid="stToolbar"] a[aria-label*="GitHub"],
+    [data-testid="stToolbar"] a[title*="GitHub"],
+    [data-testid="stToolbar"] [aria-label*="github"],
+    [data-testid="stToolbar"] [title*="github"] {
         display: none !important;
-        visibility: hidden !important;
     }
 
-    /* Star / Favorite icon */
-    header [aria-label*="star" i],
-    header [title*="star" i],
-    header [data-testid*="star" i],
-    header [data-testid*="favorite" i],
-    [data-testid="stToolbar"] [aria-label*="star" i],
-    [data-testid="stToolbar"] [title*="star" i],
-    [data-testid="stToolbar"] [data-testid*="star" i],
-    [data-testid="stToolbar"] [data-testid*="favorite" i],
-    [data-testid="stToolbarActions"] [aria-label*="star" i],
-    [data-testid="stToolbarActions"] [title*="star" i],
-    .stAppToolbar [aria-label*="star" i],
-    .stAppToolbar [title*="star" i] {
-        display: none !important;
-        visibility: hidden !important;
-    }
-
-    /* Edit / pen icon */
-    header [aria-label*="edit" i],
-    header [title*="edit" i],
-    header [data-testid*="edit" i],
-    [data-testid="stToolbar"] [aria-label*="edit" i],
-    [data-testid="stToolbar"] [title*="edit" i],
-    [data-testid="stToolbar"] [data-testid*="edit" i],
-    [data-testid="stToolbarActions"] [aria-label*="edit" i],
-    [data-testid="stToolbarActions"] [title*="edit" i],
-    .stAppToolbar [aria-label*="edit" i],
-    .stAppToolbar [title*="edit" i] {
-        display: none !important;
-        visibility: hidden !important;
-    }
-
-    </style>
+</style>
     """,
     unsafe_allow_html=True
 )
@@ -957,7 +785,7 @@ st.markdown(
 with st.sidebar:
 
     st.markdown(
-        "## 🛡️ ShieldAI"
+        "##  ShieldAI"
     )
 
     st.caption(
@@ -1077,166 +905,17 @@ with st.sidebar:
 
 
 # ============================================================
-# HEADER + LOGIN
+# HEADER
 # ============================================================
 
-header_col, login_col = st.columns([8.2, 1.8], vertical_alignment="top")
+st.markdown(
+    "#  Multilingual Phishing & Spam Detection"
+)
 
-with header_col:
-
-    st.markdown(
-        "# 🛡️ Multilingual Phishing & Spam Detection"
-    )
-
-    st.caption(
-        "AI-powered detection of suspicious messages "
-        "across English, Hindi and Hinglish."
-    )
-
-with login_col:
-
-    if not st.session_state.logged_in:
-
-        with st.popover("🔐 Login", use_container_width=True):
-
-            login_tab, register_tab = st.tabs(
-                ["Login", "Create Account"]
-            )
-
-            with login_tab:
-
-                st.markdown("### 🔐 Login")
-
-                login_email = st.text_input(
-                    "Email",
-                    key="login_email"
-                )
-
-                login_password = st.text_input(
-                    "Password",
-                    type="password",
-                    key="login_password"
-                )
-
-                if st.button(
-                    "Login",
-                    type="primary",
-                    key="login_submit",
-                    use_container_width=True
-                ):
-
-                    if not login_email or not login_password:
-
-                        st.warning(
-                            "Please enter email and password."
-                        )
-
-                    else:
-
-                        success, data = login_user(
-                            login_email,
-                            login_password
-                        )
-
-                        if success:
-
-                            st.session_state.logged_in = True
-                            st.session_state.user_id = data["user_id"]
-                            st.session_state.user_name = data["name"]
-                            st.session_state.user_email = data["email"]
-
-                            st.rerun()
-
-                        else:
-
-                            st.error(str(data))
-
-            with register_tab:
-
-                st.markdown("### 📝 Create Account")
-
-                register_name = st.text_input(
-                    "Full Name",
-                    key="register_name"
-                )
-
-                register_email = st.text_input(
-                    "Email",
-                    key="register_email"
-                )
-
-                register_password = st.text_input(
-                    "Password",
-                    type="password",
-                    key="register_password"
-                )
-
-                register_confirm = st.text_input(
-                    "Confirm Password",
-                    type="password",
-                    key="register_confirm"
-                )
-
-                if st.button(
-                    "Create Account",
-                    type="primary",
-                    key="register_submit",
-                    use_container_width=True
-                ):
-
-                    if not register_name or not register_email or not register_password:
-
-                        st.warning(
-                            "Please fill all fields."
-                        )
-
-                    elif register_password != register_confirm:
-
-                        st.error(
-                            "Passwords do not match."
-                        )
-
-                    else:
-
-                        success, data = register_user(
-                            register_name,
-                            register_email,
-                            register_password
-                        )
-
-                        if success:
-
-                            st.success(
-                                "Account created successfully. "
-                                "You can now login."
-                            )
-
-                        else:
-
-                            st.error(str(data))
-
-    else:
-
-        with st.popover(
-            f"👤 {st.session_state.user_name}",
-            use_container_width=True
-        ):
-
-            st.markdown("### 👤 Account")
-            st.caption(st.session_state.user_email)
-
-            if st.button(
-                "🚪 Logout",
-                key="logout_button",
-                use_container_width=True
-            ):
-
-                st.session_state.logged_in = False
-                st.session_state.user_id = None
-                st.session_state.user_name = ""
-                st.session_state.user_email = ""
-
-                st.rerun()
+st.caption(
+    "AI-powered detection of suspicious messages "
+    "across English, Hindi and Hinglish."
+)
 
 
 # ============================================================
@@ -1244,7 +923,7 @@ with login_col:
 # ============================================================
 
 st.subheader(
-    "🔍 Message Analyzer"
+    " Message Analyzer"
 )
 
 st.caption(
@@ -1273,27 +952,6 @@ spam_examples = [
     "You have won a lucky draw prize of ₹5,00,000. Send your details to claim.",
 
     "Your mobile number has won a special reward. Claim it before midnight!"
-
-]
-
-
-legit_examples = [
-
-    "Hi, are we still meeting for lunch tomorrow at 1 pm?",
-
-    "Your order has been shipped and will arrive by Friday. Thank you for shopping with us.",
-
-    "Reminder: your dentist appointment is scheduled for Monday at 10:30 AM.",
-
-    "Please find the meeting notes attached. Let me know if I missed anything.",
-
-    "Happy birthday! Hope you have a wonderful day with family and friends.",
-
-    "Bhai kal shaam ko cricket khelne chalna hai, tum aa rahe ho?",
-
-    "Mummy ne kaha hai ki aaj dinner ghar par karna hai.",
-
-    "कल की मीटिंग शाम पाँच बजे है, कृपया समय पर पहुँचें।"
 
 ]
 
@@ -1389,60 +1047,52 @@ hinglish_examples = [
 
 
 # ============================================================
-# SAMPLE BUTTON CALLBACKS
-# (callbacks run before the text area is drawn, so no st.rerun()
-#  is needed and the text box always gets replaced)
-# ============================================================
-
-def set_sample(examples):
-    st.session_state.message = random.choice(examples)
-
-
-# ============================================================
 # SAMPLE BUTTONS
 # ============================================================
 
-sample1, sample2, sample3, sample4 = st.columns(4)
+sample1, sample2, sample3 = st.columns(3)
 
 
 with sample1:
 
-    st.button(
-        "🚨 Spam Example",
-        on_click=set_sample,
-        args=(spam_examples,),
-        **STRETCH
-    )
+    if st.button(
+        " Spam Example",
+        use_container_width=True
+    ):
+
+        st.session_state.sample_message = random.choice(
+            spam_examples
+        )
+
+        st.rerun()
 
 
 with sample2:
 
-    st.button(
-        "🇮🇳 Hindi Example",
-        on_click=set_sample,
-        args=(hindi_examples,),
-        **STRETCH
-    )
+    if st.button(
+        " Hindi Example",
+        use_container_width=True
+    ):
+
+        st.session_state.sample_message = random.choice(
+            hindi_examples
+        )
+
+        st.rerun()
 
 
 with sample3:
 
-    st.button(
-        "💬 Hinglish Example",
-        on_click=set_sample,
-        args=(hinglish_examples,),
-        **STRETCH
-    )
+    if st.button(
+        " Hinglish Example",
+        use_container_width=True
+    ):
 
+        st.session_state.sample_message = random.choice(
+            hinglish_examples
+        )
 
-with sample4:
-
-    st.button(
-        "✅ Legitimate Example",
-        on_click=set_sample,
-        args=(legit_examples,),
-        **STRETCH
-    )
+        st.rerun()
 
 
 # ============================================================
@@ -1451,7 +1101,7 @@ with sample4:
 
 message = st.text_area(
     "Message",
-    key="message",
+    value=st.session_state.sample_message,
     height=160,
     placeholder=(
         "Example: Congratulations! You have won a prize. "
@@ -1465,9 +1115,9 @@ message = st.text_area(
 # ============================================================
 
 analyze = st.button(
-    "🔎 Analyze Message",
-    type="primary",
-    **STRETCH
+    " Analyze Message",
+    use_container_width=True,
+    type="primary"
 )
 
 
@@ -1477,16 +1127,10 @@ analyze = st.button(
 
 if analyze:
 
-    if not st.session_state.logged_in:
+    if not message.strip():
 
         st.warning(
-            "🔐 Please login before analyzing a message."
-        )
-
-    elif not message.strip():
-
-        st.warning(
-            "⚠️ Please enter a message before analyzing."
+            " Please enter a message before analyzing."
         )
 
     else:
@@ -1498,67 +1142,56 @@ if analyze:
         st.markdown("---")
 
         st.subheader(
-            "📊 Prediction Result"
+            " Prediction Result"
         )
 
-        if result is None:
+        if result == "SPAM / FRAUD":
 
-            st.warning(
-                "⚠️ The message is too short or contains only common "
-                "words, so there is not enough content to analyze. "
-                "Please enter a longer message."
+            st.error(
+                " SPAM / FRAUD DETECTED"
+            )
+
+            st.markdown(
+                "**Warning:** The model detected patterns "
+                "associated with suspicious or fraudulent messages."
             )
 
         else:
 
-            if result == "SPAM / FRAUD":
-
-                st.error(
-                    "🚨 SPAM / FRAUD DETECTED"
-                )
-
-                st.markdown(
-                    "**Warning:** The model detected patterns "
-                    "associated with suspicious or fraudulent messages."
-                )
-
-            else:
-
-                st.success(
-                    "✅ LEGITIMATE MESSAGE"
-                )
-
-                st.markdown(
-                    "**Result:** No fraud patterns were detected, "
-                    "but always stay cautious with links and requests "
-                    "for personal information."
-                )
-
-            st.write("")
-
-            result_col1, result_col2 = st.columns(2)
-
-            with result_col1:
-
-                st.metric(
-                    "🌐 Detected Language",
-                    language
-                )
-
-            with result_col2:
-
-                st.metric(
-                    "🎯 Confidence",
-                    f"{confidence:.1f}%"
-                )
-
-            st.progress(
-                min(confidence / 100, 1.0),
-                text=(
-                    f"Model confidence: "
-                    f"{confidence:.1f}%"
-                )
+            st.success(
+                " LEGITIMATE MESSAGE"
             )
+
+            st.markdown(
+                "**Safe classification:** The model classified "
+                "this message as legitimate (Ham)."
+            )
+
+        st.write("")
+
+        result_col1, result_col2 = st.columns(2)
+
+        with result_col1:
+
+            st.metric(
+                " Detected Language",
+                language
+            )
+
+        with result_col2:
+
+            st.metric(
+                " Confidence",
+                f"{confidence:.1f}%"
+            )
+
+        st.progress(
+            min(confidence / 100, 1.0),
+            text=(
+                f"Model confidence: "
+                f"{confidence:.1f}%"
+            )
+        )
 
 
 # ============================================================
@@ -1568,7 +1201,7 @@ if analyze:
 st.markdown("---")
 
 st.subheader(
-    "⚙️ Detection Pipeline"
+    " Detection Pipeline"
 )
 
 st.caption(
@@ -1583,7 +1216,7 @@ col1, col2, col3, col4 = st.columns(4)
 with col1:
 
     st.info(
-        "🌍 **Multilingual**\n\n"
+        " **Multilingual**\n\n"
         "English, Hindi and Hinglish message detection."
     )
 
@@ -1591,7 +1224,7 @@ with col1:
 with col2:
 
     st.info(
-        "🧹 **NLP Processing**\n\n"
+        " **NLP Processing**\n\n"
         "Text cleaning, normalization, stopword removal "
         "and stemming."
     )
@@ -1600,7 +1233,7 @@ with col2:
 with col3:
 
     st.info(
-        "📐 **TF-IDF Features**\n\n"
+        " **TF-IDF Features**\n\n"
         "Word-level and character-level text features."
     )
 
@@ -1608,7 +1241,7 @@ with col3:
 with col4:
 
     st.info(
-        "🤖 **Linear SVM**\n\n"
+        " **Linear SVM**\n\n"
         "Machine learning classification for message detection."
     )
 
@@ -1712,92 +1345,13 @@ with tab3:
 
 
 # ============================================================
-# PREDICTION HISTORY
-# ============================================================
-
-st.markdown("---")
-
-st.subheader("📜 Prediction History")
-
-if not st.session_state.logged_in:
-
-    st.info(
-        "🔐 Login to view your prediction history."
-    )
-
-else:
-
-    history = get_history(
-        st.session_state.user_id
-    )
-
-    if not history:
-
-        st.info(
-            "No prediction history available yet."
-        )
-
-    else:
-
-        for item in history:
-
-            prediction = item.get(
-                "prediction",
-                "Unknown"
-            )
-
-            confidence = float(
-                item.get("confidence", 0) or 0
-            )
-
-            message_text = item.get(
-                "message",
-                ""
-            )
-
-            language = item.get(
-                "language",
-                "Unknown"
-            )
-
-            created_at = item.get(
-                "created_at",
-                ""
-            )
-
-            if prediction == "SPAM / FRAUD":
-
-                st.error(
-                    f"🚨 **{prediction}**  |  "
-                    f"Confidence: {confidence:.1f}%"
-                )
-
-            else:
-
-                st.success(
-                    f"✅ **{prediction}**  |  "
-                    f"Confidence: {confidence:.1f}%"
-                )
-
-            st.write(
-                f"**Message:** {message_text}"
-            )
-
-            st.caption(
-                f"🌐 Language: {language}  •  🕒 {created_at}"
-            )
-
-            st.divider()
-
-
-# ============================================================
 # FOOTER
 # ============================================================
 
 st.divider()
 
 st.caption(
-    "🛡️ Multilingual Phishing & Spam Detection"
+    " Multilingual Phishing & Spam Detection"
 )
 
 st.caption(
